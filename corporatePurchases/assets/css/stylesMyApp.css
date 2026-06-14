@@ -1,0 +1,179 @@
+p {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.without-padding {
+	padding: 0px !important;
+}
+
+.hide {
+  display: none !important;
+}
+
+.user-edit-img {
+	height: 9rem; /* auto */
+    width: 9rem;
+    border-radius: 50%;
+}
+
+.user-img {
+	height: 2rem !important; /* auto */
+    width: 2rem !important;
+    border-radius: 50% !important;
+}
+
+.remaining-characters-label {
+    font-size:11px; 
+    font-weight:normal;
+    margin-top:5px;
+    float:right;        
+}
+
+.company-logo {
+  background: #812b4f;
+   border-radius: 0.8em;
+  -moz-border-radius: 0.8em;
+  -webkit-border-radius: 0.8em;
+  color: #ffffff;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 1.8em;
+  margin-left: 0.7rem;
+  text-align: center;
+  width: 1.8em;   
+}
+.company-branchOffice {
+  display: block;
+  font-size:11px; 
+  font-weight:normal;
+}
+
+/* UPLOAD FILE */
+
+.upload-file-panel {border: none;margin: 0px auto 0px; max-width: 200px; text-align: center;}
+.upload-file-view {border: none; max-width: 200px; margin: 0px auto; text-align: center; position: relative; transition: .2s; padding: 15px;}
+.upload-file-view img {max-width: 100%;}
+.upload-file-remove{width: 30px; height: 30px; border-radius: 50%; position: absolute; background: #aaa; line-height: 30px; color: #fff; font-size: 12px; cursor: pointer; right: 10px; top: 10px;}
+.upload-file-remove:hover {background: #222; transition: .2s;}
+.upload-file-btn-outer {background: #83ccd3; border-radius:20px; text-align: center; height: 30px; width: 100px; display: inline-block; transition: .2s; position: relative; overflow: hidden;}
+.upload-file-btn-upload {padding: 4px 7px 12px; color: #fff; text-align: center; position: relative; display: inline-block; overflow: hidden; z-index: 3; white-space: nowrap; font-size: 14px; }
+.upload-file-btn-upload input {position: absolute; width: 100%; left: 0; top: 0; width: 100%; height: 105%; cursor: pointer; opacity: 0; }
+.upload-file-uploading {width: 100%; height: 10px; margin-top: 20px; background: #ccc;}
+.upload-file-uploading .upload-file-btn-upload {display: none;}
+.upload-file-processing-bar {position: absolute; left: 0; top: 0; width: 0; height: 100%; border-radius: 30px; background:#83ccd3; transition: 3s;}
+.upload-file-uploading .upload-file-processing-bar {width: 100%;}
+.upload-file-uploaded {background:#83ccd3;}
+.upload-file-error-msg {text-align: center; color: #f00}
+
+/* END - UPLOAD FILE */
+
+.minor-outdated-price {
+    background-color: antiquewhite;
+}
+
+.major-outdated-price {
+    background-color: #ffffd1;
+}
+
+.round-table {
+    border-collapse:separate;
+    border-spacing: 0;
+    border:solid black 0px;
+    border-radius: 10px;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;    
+}
+
+.gradient-table-print {
+    /* http://www.colorzilla.com/gradient-editor/ */    
+    background: #0a0202; /* Old browsers */
+    background: -moz-linear-gradient(top,#0a0202 0%,#777777 50%,#777777 51%,#d1d1d1 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(top,#0a0202 0%,#777777 50%,#777777 51%,#d1d1d1 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to bottom,#0a0202 0%,#777777 50%,#777777 51%,#d1d1d1 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#0a0202', endColorstr='#d1d1d1',GradientType=0 ); /* IE6-9 */
+}
+
+/* WHATSAPP */
+
+.whatsappLink.mobile{
+  display: none;
+}
+@only screen and (max-width:1024px){
+  .whatsappLink.desktop {
+    display: none;
+  }
+  .whatsappLink.mobile{
+    display: inline;
+  }
+}
+
+/* END - WHATSAPP */
+
+/* STATISTICS */
+.checkboxStat {
+    margin-right: 5px;
+}
+
+/* END STATISTICS */
+
+.fa-input {
+  font-family: 'Font Awesome 5 Free', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.outOfStock {
+  background-color: #f7e7e9;
+  border-color: red;
+}
+
+.dnComplete {
+  background-color: #defad7;
+}
+
+.dnIncomplete {
+  background-color: #f7e7e9;
+}
+
+.deletedRegister {
+  background-color: #f7e7e9;  
+}
+
+.partialCanceledItem {
+  background-color: #f7e7e9;
+  border-color: #e5e502;
+}
+
+.totalCanceledItem {
+  background-color: #f7e7e9;
+  border-color: blue;
+}
+
+.selBudgetItem {
+  background-color: #defad7;
+}
+
+.multiselect-container > li > a > label {
+    font-weight: normal !important;
+}
+
+.multiselect-container li a {
+    text-align: left !important;
+    padding: 2px 8px !important; /* menos espacio */
+}
+
+.multiselect-container li a label {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    text-align: left !important;   
+    white-space: nowrap; 
+}
+
+.multiselect-container {
+    z-index: 9999 !important;
+}
+
+.multiselect-container {
+    max-width: 100%;
+    overflow-x: hidden;
+}

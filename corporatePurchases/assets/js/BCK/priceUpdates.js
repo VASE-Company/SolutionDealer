@@ -1,0 +1,3 @@
+function initializeImportPriceUpdates() {
+	bsCustomFileInput.init();
+}

@@ -1,0 +1,1 @@
+<?php echo $this->load->get_section('body');	?>
