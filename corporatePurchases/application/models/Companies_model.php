@@ -28,6 +28,9 @@ class Companies_model extends CI_Model{
 					$filter .= " AND companies.id = ".$parameters['idFilter'];				
 				}
 			}				
+			if (isset($parameters['idsFilter']) && $parameters['idsFilter'] != '' && $parameters['idsFilter'] != 'all') {				
+				$filter .= " AND companies.id IN(".str_replace("|",",",$parameters['idsFilter']).")";	
+			}
 			if (isset($parameters['textFilter']) && $parameters['textFilter'] != '') {
 				$filter .= " AND companies.description LIKE ".$this->company_db->escape("%".$parameters['textFilter']."%");
 			}			

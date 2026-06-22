@@ -92,13 +92,15 @@ class Budgets extends CI_Controller {
 			if ($id <= 0) {
 				$budget = $this->budgets->getEmptyBudget();								;				
 				$budget['orderId'] = $orderId;
-			}		
+			}
+
+
 
 			if (isset($values) && isset($values['details'])) $budget['details'] = $values['details'];
-			if (isset($values) && isset($values['attachments'])) $order['attachments'] = $values['attachments'];			
+			if (isset($values) && isset($values['attachments'])) $budget['attachments'] = $values['attachments'];			
 								  	
 		  	$contentData['allowEditDetail'] = ($this->my_application->hasPermission("Budgets","Insert") && $id <= 0);															
-		  	$contentData['allowSave'] = $contentData['allowEditDetail'];					  	
+		  	$contentData['allowSave'] = $contentData['allowEditDetail'];				  				  
 
 			$originsParameters["idFilter"] = $budget["originId"];				
 			if ($contentData['allowSave']) {

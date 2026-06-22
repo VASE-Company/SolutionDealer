@@ -10,7 +10,17 @@ function clearFilterReports() {
 	clearFilter('frmFilter',false);
 
 	if ($('#dateFromFilter') != null) $('#dateFromFilter').val($('#dateFromFilter').attr('original'));
-	if ($('#dateToFilter') != null) $('#dateToFilter').val($('#dateToFilter').attr('original'));		
+	if ($('#dateToFilter') != null) $('#dateToFilter').val($('#dateToFilter').attr('original'));
+	if ($('#companyIdsFilterSelected') != null) {
+		$('#companyIdsFilter').multiselect('selectAll', false);
+		$('#companyIdsFilter').multiselect('updateButtonText');
+		$('#companyIdsFilterSelected').val('all');	
+	}
+	if ($('#familyIdsFilterSelected') != null) {
+		$('#familyIdsFilter').multiselect('selectAll', false);
+		$('#familyIdsFilter').multiselect('updateButtonText');
+		$('#familyIdsFilterSelected').val('all');		
+	}
 }
 
 function validateDataReports() {
@@ -34,7 +44,32 @@ function validateDataReports() {
 			alert('El rango de fecha para este tipo de reporte no puede contemplar más de 12 meses.')
 			return false;	
 		}		
-	}
+	}	
+
+	if ($('#type').val() == 'estimatedpurchase') {	
+		if ($('#dateFromFilter') != null && $('#dateFromFilter').val() == "") {
+			alert('Debe seleccionar el rango de fechas de referencia.')
+			return false;
+		}	
+
+		if ($('#dateToFilter') != null && $('#dateToFilter').val() == "") {
+			alert('Debe seleccionar el rango de fechas de referencia.')
+			return false;
+		}
+
+		if (!isValidPeriod($('#dateFromFilter').val(), $('#dateToFilter').val())) {
+			alert('El rango de fechas de referencia no es válido.')
+			return false;
+		}	
+
+		if ($('#estimatedDays') != null && ($('#estimatedDays').val() == "") || isNaN($('#estimatedDays').val()) || parseInt($('#estimatedDays').val()) <= 0) {
+			alert('Los días a estimar no son válidos.')
+			return false;
+		}
+	}	
+	
+	if ($('#companyIdsFilter') != null) getValueComboFilter('companyIdsFilter');	      	
+	if ($('#familyIdsFilter') != null) getValueComboFilter('familyIdsFilter');	
 
 	return true;
 }
@@ -109,7 +144,20 @@ function generateGraphicTotalizedGeneralReport() {
 function generateGraphicProgressionGeneralReport() {		
 	modalMessage('reports/graph',null,null,null,null,null,"closeModalMessage()",true,"initializeBarChartReports('grData','colY','colX')",null,1000);					
 }
+// --------------------------------------------------
 
+// ----------------- ESTIMATED PURCHASE REPORT -----------------
+function intializeEstimatedPurchaseReport() {
+	inicializeComboFilter('companyIdsFilter');
+	inicializeComboFilter('familyIdsFilter');
+}
+// --------------------------------------------------
+
+// ----------------- ARTICLES BY ORDER REPORT -----------------
+function intializeArticlesByOrderReport() {
+	inicializeComboFilter('companyIdsFilter');
+	inicializeComboFilter('familyIdsFilter');
+}
 // --------------------------------------------------
 
 // --------------------- GRAPHIC ---------------------

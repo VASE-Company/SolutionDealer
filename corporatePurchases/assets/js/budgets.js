@@ -36,8 +36,15 @@ function calculateTotalBudgetEdit() {
 }
 
 function preSaveBudget() {
+	searchSupplierBudgetEdit();
+
+	if ($('#supplierId').val() == "" || $('#supplierId').val() == "0") {
+		alert("El CUIT no pertenece a un proveedor registrado.");
+		return false;
+	}
+	
 	if (!detailsValidBudgetEdit()) {
-			return false;
+		return false;
 	}
 
 	preSubmit();

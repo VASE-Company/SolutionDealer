@@ -147,10 +147,10 @@ class my_application {
 		if ($this->_existsPermission('Reports',"General",$permissions)){
 			$idxSubMenu++;		
 			$subMenu[$idxSubMenu] = array('text'=>'Reporte General', 'link'=>base_url().'reports?type=general', 'active'=>($menuActive == 'ReportGeneral'));
-		}											
-		if ($this->_existsPermission('Reports',"ArticlesByOrder",$permissions)){
+		}																				
+		if ($this->_existsPermission('Reports',"EstimatedPurchase",$permissions)){
 			$idxSubMenu++;		
-			$subMenu[$idxSubMenu] = array('text'=>'Reporte de Art. x Pedidos', 'link'=>base_url().'reports?type=articlesByOrder', 'active'=>($menuActive == 'ReportArticlesByOrder'));
+			$subMenu[$idxSubMenu] = array('text'=>'Estimación de Compras', 'link'=>base_url().'reports?type=estimatedPurchase', 'active'=>($menuActive == 'ReportEstimatedPurchase'));
 		}																
 		if ($idxSubMenu != -1) {
 			$active = false;

@@ -35,7 +35,7 @@
 </div> 
 <div class="row">   
     <div class="form-group" style="float:left;margin-right:10px;">
-        <label for="groupedByFilter">Agrupado por
+        <label for="groupedByFilter">Agrupado por</label>
         <select id="groupedByFilter" name="groupedByFilter" class="form-control form-control-sm" style="width:140px;">                                  
             <?php                                                         
                 for ($i=0; $i < count($groupedBy); $i++) {                                                
@@ -47,7 +47,7 @@
         </select>
     </div> 
     <div class="form-group" style="float:left;margin-right:10px;">
-        <label for="subtypeFilter">Tipo
+        <label for="subtypeFilter">Tipo</label>
         <select id="subtypeFilter" name="subtypeFilter" class="form-control form-control-sm">                                  
             <?php                                                         
                 for ($i=0; $i < count($subtypes); $i++) {                                                
@@ -59,7 +59,7 @@
         </select>
     </div> 
     <div class="form-group" style="float:left;margin-right:10px;">
-        <label for="valueTypeIdFilter">Valor
+        <label for="valueTypeIdFilter">Valor</label>
         <select id="valueTypeIdFilter" name="valueTypeIdFilter" class="form-control form-control-sm">                                  
             <?php                                                         
                 for ($i=0; $i < count($valueTypes); $i++) {                                                
