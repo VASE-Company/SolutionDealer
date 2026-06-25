@@ -329,6 +329,106 @@ class Reports_model extends CI_Model{
 		return $data;		
 	}  			
 
+	function getPartialDeliveries($parameters=NULL){
+
+		$data = array('list'=>NULL,
+		              'totalRecords'=>0);
+
+		$filter = "";
+		$limit = "";
+
+		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
+			$filter .= " AND DATE(orders.maximumDate) >= ".$this->company_db->escape($parameters['dateFromFilter']);
+		}
+		if (isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
+			$filter .= " AND DATE(orders.maximumDate) <= ".$this->company_db->escape($parameters['dateToFilter']);
+		}
+		if (isset($parameters['stateIdFilter']) && $parameters['stateIdFilter'] != "") {
+			$filter .= " AND orders.stateId = ".$this->company_db->escape($parameters['stateIdFilter']);
+		}
+		if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] > 0) {
+			$filter .= " AND branchOffices.companyId = ".$parameters['companyIdFilter'];
+		}
+		if (isset($parameters['branchOfficeIdFilter']) && $parameters['branchOfficeIdFilter'] > 0) {
+			$filter .= " AND orders.branchOfficeId = ".$parameters['branchOfficeIdFilter'];
+		}
+		if (isset($parameters['familyIdFilter']) && $parameters['familyIdFilter'] > 0) {
+			$filter .= " AND articles.familyId = ".$parameters['familyIdFilter'];
+		}
+		if (isset($parameters['articleFilter']) && $parameters['articleFilter'] != "") {
+			$sqlArticles = "SELECT id
+							FROM articles
+							WHERE deleted = 0 AND code = ".$this->company_db->escape($parameters['articleFilter']);
+			$queryArticles = $this->company_db->query($sqlArticles);
+			if ($queryArticles->num_rows() > 0){
+				$row = $queryArticles->row_array();
+
+				$articleId = $row['id'];
+			} else {
+				$articleId = -1;
+			}
+			$filter .= " AND detailsByOrder.articleId = ".$articleId;
+		}
+		if (isset($parameters['limit']) && $parameters['limit'] > 0) {
+			$limit = " LIMIT ".$parameters['limit'];
+		}
+
+		// Las cantidades se calculan desde remitos vigentes para evitar depender del cache del detalle.
+		// El plazo se lee de orders.maximumDate porque es la fecha real de cumplimiento.
+		$sql = "SELECT SQL_CALC_FOUND_ROWS ";
+		$sql .= "orders.id AS orderId, ";
+		$sql .= "orders.date AS orderDate, ";
+		$sql .= "orders.maximumDays, ";
+		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','',orders.maximumDate) AS maximumDate, ";
+		$sql .= "orders.stateId, ";
+		$sql .= "ordersStates.description AS stateDescription, ";
+		$sql .= "companies.id AS companyId, ";
+		$sql .= "companies.description AS companyDescription, ";
+		$sql .= "branchOffices.description AS branchOfficeDescription, ";
+		$sql .= "detailsByOrder.id AS detailOrderId, ";
+		$sql .= "detailsByOrder.code AS articleCode, ";
+		$sql .= "CONCAT(detailsByOrder.code,' - ',detailsByOrder.description) AS articleDescription, ";
+		$sql .= "IF(ISNULL(families.id),'',families.description) AS familyDescription, ";
+		$sql .= "(detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) AS requestedQuantity, ";
+		$sql .= "IFNULL(deliveryNotesSummary.deliveredQuantity,0) AS deliveredQuantity, ";
+		$sql .= "IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) >= (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)),'Entrega Completa',IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) > 0,'Entrega Parcial','Sin Entregar Aun')) AS deliveryStateDescription, ";
+		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),'Vencido',IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy','No vencido'))) AS dueSituationDescription, ";
+		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),CONCAT('Vencido hace ',DATEDIFF(CURDATE(),DATE(orders.maximumDate)),' dias'),IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy',CONCAT('Faltan ',DATEDIFF(DATE(orders.maximumDate),CURDATE()),' dias')))) AS delayDescription, ";
+		$sql .= "IF(ISNULL(purchasesOrders.id) OR purchasesOrders.id <= 0,'',CONCAT(purchasesOrders.id,'-',companies.id,'-',DATE_FORMAT(purchasesOrders.date,'%m%y'))) AS purchaseOrderNumber, ";
+		$sql .= "IFNULL(deliveryNotesSummary.deliveryNotes,'') AS deliveryNotes ";
+		$sql .= "FROM ((((((orders INNER JOIN detailsByOrder ON orders.id = detailsByOrder.orderId) ";
+		$sql .= "INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id) ";
+		$sql .= "INNER JOIN companies ON branchOffices.companyId = companies.id) ";
+		$sql .= "LEFT JOIN ordersStates ON orders.stateId = ordersStates.id) ";
+		$sql .= "LEFT JOIN articles ON detailsByOrder.articleId = articles.id) ";
+		$sql .= "LEFT JOIN families ON articles.familyId = families.id) ";
+		$sql .= "LEFT JOIN purchasesOrders ON purchasesOrders.orderId = orders.id ";
+		$sql .= "LEFT JOIN ( ";
+		$sql .= "	SELECT detailsByDeliveryNotes.detailOrderId, ";
+		$sql .= "		   SUM(detailsByDeliveryNotes.quantity) AS deliveredQuantity, ";
+		$sql .= "		   GROUP_CONCAT(DISTINCT CONCAT(deliveryNotes.id,'-',branchOffices.companyId,'-',DATE_FORMAT(deliveryNotes.date,'%m%y')) ORDER BY deliveryNotes.id SEPARATOR ', ') AS deliveryNotes ";
+		$sql .= "	FROM (detailsByDeliveryNotes INNER JOIN deliveryNotes ON detailsByDeliveryNotes.deliveryNoteId = deliveryNotes.id) ";
+		$sql .= "	INNER JOIN orders ON deliveryNotes.orderId = orders.id ";
+		$sql .= "	INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id ";
+		$sql .= "	WHERE detailsByDeliveryNotes.deleted = 0 AND deliveryNotes.deleted = 0 AND orders.deleted = 0 ";
+		$sql .= "	GROUP BY detailsByDeliveryNotes.detailOrderId ";
+		$sql .= ") AS deliveryNotesSummary ON deliveryNotesSummary.detailOrderId = detailsByOrder.id ";
+		$sql .= "WHERE orders.deleted = 0 AND detailsByOrder.deleted = 0 ";
+		$sql .= "AND (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) > 0 ";
+		$sql .= $filter." ";
+		$sql .= "ORDER BY TRIM(families.description), TRIM(detailsByOrder.description), orders.maximumDate, orders.id ";
+		$sql .= $limit;
+
+		$query = $this->company_db->query($sql);
+		$queryTotal = $this->company_db->query("SELECT FOUND_ROWS() AS totalRecords");
+		if ($query->num_rows() > 0) {
+			$data = array('list'=>$query->result_array(),
+		                  'totalRecords'=>$queryTotal->row()->totalRecords);
+		}
+
+		return $data;
+	}
+
 	function getGeneralReport($parameters=NULL){				
 		
 		$data = NULL;

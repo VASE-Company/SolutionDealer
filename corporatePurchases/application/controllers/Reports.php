@@ -22,6 +22,7 @@ class Reports extends CI_Controller {
 		$this->load->model('families_model','families');
 		$this->load->model('companies_model','companies');
 		$this->load->model('sectors_model','sectors');
+		$this->load->model('orders_model','orders');
 		$this->load->js('assets/js/reports.js');	
 		$this->load->js('assets/plugins/chart.js/chart.js');		
    	}
@@ -43,8 +44,12 @@ class Reports extends CI_Controller {
 				$hasPermission = $this->my_application->hasPermission("Reports","General");		
 			break;
 
-			case "articlesByOrder":									
+			case "articlesbyorder":
 				$hasPermission = $this->my_application->hasPermission("Reports","ArticlesByOrder");		
+			break;
+
+			case "partialdeliveries":
+				$hasPermission = $this->my_application->hasPermission("Reports","PartialDeliveries");
 			break;
 
 			default:	
@@ -108,6 +113,16 @@ class Reports extends CI_Controller {
 					$contentData['filtersPath'] = "reports_general_filters_view.php";
 				break;
 
+				case "partialdeliveries":
+					$filters['company'] = true;
+					$filters['family'] = true;
+					$filters['state'] = true;
+
+					$title = "Control de Entregas";
+					$contentData['callback'] = 'intializePartialDeliveriesReport()';
+					$contentData['filtersPath'] = "reports_partialdeliveries_filters_view.php";
+				break;
+
 				default:	
 					$hasPermission = false;					
 				break;
@@ -141,11 +156,22 @@ class Reports extends CI_Controller {
 					$sectors = $this->sectors->getSectors();
 					$contentData['sectors'] = $sectors["list"];				
 				}
+
+				if (isset($filters['state']) && $filters['state'] == true) {
+					$states = $this->orders->getStates();
+					$contentData['states'] = $states["list"];
+				}
 			} 						
 			
 			$contentData['type'] = $type;
 
-			$data['menuActive'] = "ReportsStock";
+			switch ($type) {
+				case "stock": $data['menuActive'] = "ReportStock"; break;
+				case "general": $data['menuActive'] = "ReportGeneral"; break;
+				case "articlesbyorder": $data['menuActive'] = "ReportArticlesByOrder"; break;
+				case "partialdeliveries": $data['menuActive'] = "ReportPartialDeliveries"; break;
+				default: $data['menuActive'] = "";
+			}
 			$data['title'] = $title;
 			$data['contentView'] = 'reports/reports_view';
 			$data['contentData'] = $contentData;
@@ -167,6 +193,7 @@ class Reports extends CI_Controller {
 		$data['companyIdFilter'] = array('getField'=>'com');	
 		$data['branchOfficeIdFilter'] = array('getField'=>'bo');	
 		$data['sectorIdFilter'] = array('getField'=>'sec');	
+		$data['stateIdFilter'] = array('getField'=>'sta');
 		$data['groupedByFilter'] = array('getField'=>'grb');	
 		$data['subtypeFilter'] = array('getField'=>'stype');	
 		$data['valueTypeIdFilter'] = array('getField'=>'vt');	
@@ -222,9 +249,11 @@ class Reports extends CI_Controller {
 		$contentData['byAjax'] = true;	
 
 		$viewName = "reports/reports_".$parameters["type"];
-		switch ($parameters['subtypeFilter']) {
-			case "PRO": $viewName .= "_progression"; break;
-			case "TOT": $viewName .= "_totalized"; break;
+		if (isset($parameters['subtypeFilter'])) {
+			switch ($parameters['subtypeFilter']) {
+				case "PRO": $viewName .= "_progression"; break;
+				case "TOT": $viewName .= "_totalized"; break;
+			}
 		}
 		$viewName .= "_view";
 		$view = $this->load->view($viewName,$contentData,true);			
@@ -244,9 +273,13 @@ class Reports extends CI_Controller {
 				$data = $this->_getDataGeneral($parameters);
 			break;
 
-			case "articlesByOrder": 
+			case "articlesbyorder":
 				//$data = $this->_getDataGeneral($parameters);
-			break;			
+			break;
+
+			case "partialdeliveries":
+				$data = $this->_getDataPartialDeliveries($parameters);
+			break;
 		}
 
 		return $data;
@@ -299,6 +332,18 @@ class Reports extends CI_Controller {
 		return $data;
 	}
 
+	function _getDataPartialDeliveries($parameters) {
+
+		if (!(isset($parameters['export']) && $parameters['export'] == true)) {
+			$parameters['limit'] = 50;
+		}
+
+		$partialDeliveries = $this->reports->getPartialDeliveries($parameters);
+		$data['data'] = $partialDeliveries['list'];
+
+		return $data;
+	}
+
 	function export()
 	{							
 		if (!$this->session->userdata('userLoggedIn') || !$this->my_application->hasPermission("Reports","Export") || !$this->_hasPermission()) exit;											
@@ -316,6 +361,10 @@ class Reports extends CI_Controller {
 			case "general": 									
 				if ($parameters['subtypeFilter'] == 'PRO') $this->_exportProgressionGeneral($data);				
 				if ($parameters['subtypeFilter'] == 'TOT') $this->_exportTotalizedGeneral($data);								
+			break;
+
+			case "partialdeliveries":
+				$this->_exportPartialDeliveries($data);
 			break;
 		}
     }
@@ -763,6 +812,114 @@ class Reports extends CI_Controller {
 
 		@unlink($folder.$filename);				
 							
+		force_download($filename,$fileContent);
+	}
+
+	function _exportPartialDeliveries($data) {
+
+		$data = $data['data'];
+
+		$spreadsheet = new Spreadsheet();
+		$sheet = $spreadsheet->getActiveSheet();
+		$sheet->setTitle('Control Entregas');
+
+		$row = 1;
+		$sheet->setCellValue('A'.$row,"CONTROL DE ENTREGAS");
+		$styleCell = array('font'=>array('bold'=>true,'size'=>16));
+		$sheet->getStyle('A'.$row)->applyFromArray($styleCell);
+		$sheet->mergeCells('A'.$row.':'.'O'.$row);
+
+		$headers = array(
+			"Pedido",
+			"Fecha Pedido",
+			"Empresa",
+			"Sucursal",
+			"Rubro",
+			"Articulo",
+			"Plazo",
+			"Fecha Plazo",
+			"Demora",
+			"Estado Pedido",
+			"Estado Entrega",
+			"Cantidad",
+			"Situacion",
+			"Nro Orden",
+			"Remitos"
+		);
+
+		$row = 3;
+		for ($i=0; $i < count($headers); $i++) {
+			$sheet->setCellValue(getLetterOfExcelColumn($i+1).$row,$headers[$i]);
+		}
+
+		$styleCell = array(
+			'fill' => array(
+				'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+				'startColor' => array('argb' => '00000000')
+			),
+			'font' => array(
+				'bold'=>true,
+				'color' => array('argb' => 'FFFFFFFF')
+			)
+		);
+
+		$sheet->getStyle('A'.$row.":".getLetterOfExcelColumn(count($headers)).$row)->applyFromArray($styleCell);
+
+		if (isset($data)) {
+			for ($i=0; $i < count($data); $i++) {
+				$quantityDescription = (int)$data[$i]['deliveredQuantity']."/".(int)$data[$i]['requestedQuantity'];
+				$maximumDate = (trim($data[$i]['maximumDate']) != ""?dateFormat($data[$i]['maximumDate'],false):"");
+
+				$row++;
+				$col = 0;
+
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['orderId']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,dateFormat($data[$i]['orderDate'],false));
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['companyDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['branchOfficeDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['familyDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['articleDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['maximumDays']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$maximumDate);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['delayDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['stateDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['deliveryStateDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$quantityDescription);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['dueSituationDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['purchaseOrderNumber']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['deliveryNotes']);
+			}
+		}
+
+		for ($i=1; $i <= count($headers); $i++) {
+			$sheet->getColumnDimension(getLetterOfExcelColumn($i))->setAutoSize(true);
+		}
+
+        $writer = new Xlsx($spreadsheet);
+
+		$folder = $this->config->item('files').'/tmp/';
+		$filename = 'control_entregas_'.getCurrentDateId().'.xlsx';
+
+		$writer->save($folder.$filename);
+
+		$this->load->helper('download');
+		$fileContent = file_get_contents($folder.$filename);
+		@unlink($folder.$filename);
 		force_download($filename,$fileContent);
 	}
 

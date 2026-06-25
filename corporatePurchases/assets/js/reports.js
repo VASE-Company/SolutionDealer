@@ -36,6 +36,15 @@ function validateDataReports() {
 		}		
 	}
 
+	if ($('#type').val() == 'partialdeliveries') {
+		if ($('#dateFromFilter') != null && $('#dateToFilter') != null && $('#dateFromFilter').val() != "" && $('#dateToFilter').val() != "") {
+			if (!isValidPeriod($('#dateFromFilter').val(), $('#dateToFilter').val())) {
+				alert('El rango de fechas de plazo no es valido.')
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -48,9 +57,12 @@ function selectCompanyReports() {
 function selectBranchOfficeReports() {
 	var branchOfficeId = $('#branchOfficeIdFilter').val();	
 	if (branchOfficeId == "") branchOfficeId = -999;
-	$('#sectorIdFilter').html('<option value="">Cargando...</option>');	
-	var url = $('#baseUrl').val()+'sectors/sectorsCombo/'+branchOfficeId+"?ao=1&fo=ALL_M_S";				
-	loadDataByAjax(url,'sectorIdFilter',null,null,true);			    							
+
+	if ($('#sectorIdFilter').length > 0) {
+		$('#sectorIdFilter').html('<option value="">Cargando...</option>');
+		var url = $('#baseUrl').val()+'sectors/sectorsCombo/'+branchOfficeId+"?ao=1&fo=ALL_M_S";
+		loadDataByAjax(url,'sectorIdFilter',null,null,true);
+	}
 }
 
 // ----------------- STOCK REPORT -----------------
@@ -111,6 +123,13 @@ function generateGraphicProgressionGeneralReport() {
 }
 
 // --------------------------------------------------
+
+// ------------- PARTIAL DELIVERIES REPORT -------------
+function intializePartialDeliveriesReport() {
+	selectCompanyReports();
+}
+
+// -----------------------------------------------------
 
 // --------------------- GRAPHIC ---------------------
 
