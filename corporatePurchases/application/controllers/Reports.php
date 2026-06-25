@@ -50,9 +50,9 @@ class Reports extends CI_Controller {
 				$hasPermission = $this->my_application->hasPermission("Reports","General");		
 			break;
 
-			case "articlesbyorder":
-				$hasPermission = $this->my_application->hasPermission("Reports","ArticlesByOrder");		
-			break;
+			case "estimatedpurchase":									
+				$hasPermission = $this->my_application->hasPermission("Reports","EstimatedPurchase");						
+			break;	
 
 			case "partialdeliveries":
 				$hasPermission = $this->my_application->hasPermission("Reports","PartialDeliveries");
@@ -119,15 +119,18 @@ class Reports extends CI_Controller {
 					$contentData['filtersPath'] = "reports_general_filters_view.php";
 				break;
 
-				case "articlesbyorder":
+				case "estimatedpurchase":																								
 					$filters['company'] = true;
 					$filters['family'] = true;
-					$filters['state'] = true;
 
-					$title = "Reporte de Art. x Pedidos";
-					$contentData['callback'] = 'intializeArticlesByOrderReport()';
-					$contentData['filtersPath'] = "reports_articlesbyorder_filters_view.php";
-				break;
+					$articleStates[0] = array('id'=>'ALL','description'=>'Todos');	
+					$articleStates[1] = array('id'=>'ACT','description'=>'Sólo Activos');											
+					$contentData['articleStates'] = $articleStates;
+															
+					$title = "Reporte de Estimación de Compras";			
+					$contentData['callback'] = 'intializeEstimatedPurchaseReport()';
+					$contentData['filtersPath'] = "reports_estimatedPurchase_filters_view.php";
+				break;			
 
 				case "partialdeliveries":
 					$filters['company'] = true;
@@ -185,7 +188,7 @@ class Reports extends CI_Controller {
 			switch ($type) {
 				case "stock": $data['menuActive'] = "ReportStock"; break;
 				case "general": $data['menuActive'] = "ReportGeneral"; break;
-				case "articlesbyorder": $data['menuActive'] = "ReportArticlesByOrder"; break;
+				case "estimatedpurchase": $data['menuActive'] = "ReportEstimatedPurchase"; break;
 				case "partialdeliveries": $data['menuActive'] = "ReportPartialDeliveries"; break;
 				default: $data['menuActive'] = "";
 			}
@@ -203,11 +206,13 @@ class Reports extends CI_Controller {
 		$data['dateToFilter'] = array('getField'=>'dt');			
 		$data['warehouseIdFilter'] = array('getField'=>'wh');			
 		$data['familyIdFilter'] = array('getField'=>'fam');	
+		$data['familyIdsFilterSelected'] = array('getField'=>'fams');	
 		$data['articleFilter'] = array('getField'=>'art');	
 		$data['haveStockFilter'] = array('getField'=>'hs');
 		$data['stockTypeIdFilter'] = array('getField'=>'st');	
 		$data['articleStateIdFilter'] = array('getField'=>'as');	
 		$data['companyIdFilter'] = array('getField'=>'com');	
+		$data['companyIdsFilterSelected'] = array('getField'=>'coms');	
 		$data['branchOfficeIdFilter'] = array('getField'=>'bo');	
 		$data['sectorIdFilter'] = array('getField'=>'sec');	
 		$data['stateIdFilter'] = array('getField'=>'sta');
@@ -216,6 +221,7 @@ class Reports extends CI_Controller {
 		$data['groupedByFilter'] = array('getField'=>'grb');	
 		$data['subtypeFilter'] = array('getField'=>'stype');	
 		$data['valueTypeIdFilter'] = array('getField'=>'vt');	
+		$data['estimatedDays'] = array('getField'=>'ed');	
 
 		foreach ($data as $key => $values) {
 			if (!(isset($data[$key]['value']) && $data[$key]['value'] != "")) {
@@ -306,9 +312,9 @@ class Reports extends CI_Controller {
 				$data = $this->_getDataGeneral($parameters);
 			break;
 
-			case "articlesbyorder":
-				$data = $this->_getDataArticlesByOrder($parameters);
-			break;
+			case "estimatedpurchase": 
+				$data = $this->_getDataEstimatedPurchase($parameters);
+			break;	
 
 			case "partialdeliveries":
 				$data = $this->_getDataPartialDeliveries($parameters);
@@ -316,19 +322,7 @@ class Reports extends CI_Controller {
 		}
 
 		return $data;
-	}
-
-	function _getDataArticlesByOrder($parameters) {
-
-		if (!(isset($parameters['export']) && $parameters['export'] == true)) {
-			$parameters['limit'] = 50;
-		}
-
-		$articlesByOrder = $this->reports->getArticlesByOrder($parameters);
-		$data['data'] = $articlesByOrder['list'];
-
-		return $data;
-	}
+	}	
 
 	function _getDataStock($parameters) {
 
@@ -409,8 +403,8 @@ class Reports extends CI_Controller {
 				if ($parameters['subtypeFilter'] == 'TOT') $this->_exportTotalizedGeneral($data);								
 			break;
 
-			case "articlesbyorder":
-				$this->_exportArticlesByOrder($data);
+			case "estimatedpurchase": 					
+				$this->_exportEstimatedPurchase($data);
 			break;
 
 			case "partialdeliveries":
@@ -865,105 +859,6 @@ class Reports extends CI_Controller {
 		force_download($filename,$fileContent);
 	}
 
-	function _exportArticlesByOrder($data) {
-
-		$data = $data['data'];
-
-		$spreadsheet = new Spreadsheet();
-		$sheet = $spreadsheet->getActiveSheet();
-		$sheet->setTitle('Articulos x Pedidos');
-
-		$row = 1;
-		$sheet->setCellValue('A'.$row,"REPORTE DE ART. X PEDIDOS");
-		$styleCell = array('font'=>array('bold'=>true,'size'=>16));
-		$sheet->getStyle('A'.$row)->applyFromArray($styleCell);
-		$sheet->mergeCells('A'.$row.':'.'M'.$row);
-
-		$headers = array(
-			"Pedido",
-			"Fecha Pedido",
-			"Empresa",
-			"Sucursal",
-			"Sector",
-			"Estado",
-			"Rubro",
-			"Codigo",
-			"Articulo",
-			"Cantidad",
-			"Entregado",
-			"Cancelado",
-			"Total"
-		);
-
-		$row = 3;
-		for ($i=0; $i < count($headers); $i++) {
-			$sheet->setCellValue(getLetterOfExcelColumn($i+1).$row,$headers[$i]);
-		}
-
-		$styleCell = array(
-			'fill' => array(
-				'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-				'startColor' => array('argb' => '00000000')
-			),
-			'font' => array(
-				'bold'=>true,
-				'color' => array('argb' => 'FFFFFFFF')
-			)
-		);
-
-		$sheet->getStyle('A'.$row.":".getLetterOfExcelColumn(count($headers)).$row)->applyFromArray($styleCell);
-
-		if (isset($data)) {
-			for ($i=0; $i < count($data); $i++) {
-				$row++;
-				$col = 0;
-
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['orderId']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,dateFormat($data[$i]['orderDate'],false));
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['companyDescription']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['branchOfficeDescription']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['sectorDescription']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['stateDescription']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['familyDescription']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['articleCode']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['articleDescription']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['quantity']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['deliveredQuantity']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['canceledQuantity']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,decimalFormat($data[$i]['total'],2));
-			}
-		}
-
-		for ($i=1; $i <= count($headers); $i++) {
-			$sheet->getColumnDimension(getLetterOfExcelColumn($i))->setAutoSize(true);
-		}
-
-        $writer = new Xlsx($spreadsheet);
-
-		$folder = $this->config->item('files').'/tmp/';
-		$filename = 'articulos_por_pedido_'.getCurrentDateId().'.xlsx';
-
-		$writer->save($folder.$filename);
-
-		$this->load->helper('download');
-		$fileContent = file_get_contents($folder.$filename);
-		@unlink($folder.$filename);
-		force_download($filename,$fileContent);
-	}
-
 	function _exportPartialDeliveries($data) {
 
 		$data = $data['data'];
@@ -1081,7 +976,202 @@ class Reports extends CI_Controller {
 
 	}
 
-	
+	function _getDataEstimatedPurchase($parameters) {
+		
+		if (!(isset($parameters['export']) && $parameters['export'] == true)) {
+			$parameters['limit'] = 50;				
+		}		
+		if (isset($parameters['articleStateIdFilter']) && trim($parameters['articleStateIdFilter']) == "ACT") {
+			$parameters['articleActiveFilter'] = "1";
+		}
+		if (isset($parameters['companyIdsFilterSelected'])) {
+			$parameters['companyIdsFilter'] = $parameters['companyIdsFilterSelected'];			
+		}
+		if (isset($parameters['familyIdsFilterSelected'])) {
+			$parameters['familyIdsFilter'] = $parameters['familyIdsFilterSelected'];			
+		}		
+		if (isset($parameters['estimatedDays'])) {
+			$parameters['estimatedDays'] = (int)$parameters['estimatedDays'];			
+		}				
+		$auxData = $this->reports->getEstimatedPurchase($parameters);
+		$data['data'] = $auxData['list'];	
+
+		$companiesParameters = null;
+		if (isset($parameters['companyIdsFilterSelected'])) {
+			$companiesParameters['idsFilter'] = $parameters['companyIdsFilterSelected'];			
+		}
+		$companies = $this->companies->getCompanies($companiesParameters);
+		$data['companies'] = $companies["list"];							
+
+		return $data;
+	}
+
+	function _exportEstimatedPurchase($data) {
+
+    	$companies = $data['companies'];
+    	$data = $data['data'];	
+
+		// INITIALITE SPREADSHEET
+				
+		$spreadsheet = new Spreadsheet();
+
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setTitle('Reporte');
+		
+        // TITLE
+        $title = "REPORTE DE ESTIMACIÓN DE COMPRAS";        
+    	        		
+        $row = 1;
+        $sheet->setCellValue('A'.$row,$title); 
+        $styleCell = array('font'=>array('bold'=>true,'size'=>16));
+        $sheet->getStyle('A'.$row)->applyFromArray($styleCell);
+        $sheet->mergeCells('A'.$row.':'.'H'.$row);
+        
+        // GRID HEADERS        
+        $row++;
+        $col = 0; 
+
+
+        $row++;    
+        $col++;      
+        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Artículo"); 
+        $sheet->mergeCells(getLetterOfExcelColumn($col).$row.':'.getLetterOfExcelColumn($col+2).$row);
+        $col += 2;
+        if (isset($companies)) { 
+            for ($i=0; $i < count($companies); $i++) {
+           		$col++;      
+        		$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$companies[$i]['description']); 
+        		$sheet->mergeCells(getLetterOfExcelColumn($col).$row.':'.getLetterOfExcelColumn($col+2).$row);
+        		$col += 2;
+           	}
+            if (count($companies) > 1) {
+            	$col++;
+            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"General");             	
+            }
+		}
+		$styleCell = array(
+				            'fill' => array(
+				                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+				                'startColor' => array('argb' => '00000000')
+				            	),
+				            'font' => array(
+				            	'bold'=>true,
+				            	'color' => array('argb' => 'FFFFFFFF')
+				            	),
+				            'alignment' => array(
+							        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+							        'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
+							    )
+					        );
+
+		$sheet->getStyle('A'.$row.":".getLetterOfExcelColumn($col).$row)->applyFromArray($styleCell);		
+
+        $col = 0;
+        $row++;
+        $col++;
+        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Código"); 
+        $col++;
+        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Descripción"); 
+        $col++;
+        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Rubro");   
+        if (isset($companies)) { 
+            for ($i=0; $i < count($companies); $i++) {
+           		$col++;
+            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Stock");             	
+            	$col++;
+            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Estimado");             	
+            	$col++;
+            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Comprar");             	
+           	}
+            if (count($companies) > 1) {            	
+            	$col++;
+            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Total Comprar");             	
+            }
+		}
+                                     		         
+		$styleCell = array(
+				            'fill' => array(
+				                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+				                'startColor' => array('argb' => 'FFA9A9A9')
+				            	),
+				            'font' => array(
+				            	'bold'=>true,
+				            	'color' => array('argb' => '00000000')
+				            	),
+				            'alignment' => array(
+							        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+							        'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
+							    )
+					        );
+
+		$sheet->getStyle('A'.$row.":".getLetterOfExcelColumn($col).$row)->applyFromArray($styleCell);		
+
+		// GRID BODY
+		if (isset($data)) {
+			for ($i=0; $i < count($data); $i++) { 
+				$col = 0;
+		        $row++;
+		        
+		        $col++;
+		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['code']); 
+		        $col++;
+		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['description']); 
+		        $col++;
+		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['familyDescription']); 
+		        if (isset($companies)) { 
+                    for($j=0; $j < count($companies); $j++) {                                                                                            
+                        if (isset($data[$i]['companies'][$companies[$j]['id']])) {
+                            $stock = $data[$i]['companies'][$companies[$j]['id']]['stock'];
+                            $estimatedQuantity = $data[$i]['companies'][$companies[$j]['id']]['estimatedQuantity'];
+                            $quantityToBuy = $data[$i]['companies'][$companies[$j]['id']]['quantityToBuy'];
+                        } else {
+                            $stock = 0;
+                            $estimatedQuantity = 0;
+                            $quantityToBuy = 0;
+                        }  
+                        $col++;
+				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$stock); 
+				        $col++;
+				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$estimatedQuantity); 
+				        $col++;
+				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$quantityToBuy); 
+                    }
+                    if (count($companies) > 1) {
+                        if (isset($data[$i]['companies'][0])) {                            
+                            $quantityToBuy = $data[$i]['companies'][0]['quantityToBuy'];
+                        } else {                            
+                            $quantityToBuy = 0;
+                        }                        
+				        $col++;
+				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$quantityToBuy); 
+                    }
+                }
+			}
+		}
+
+		for ($i=1; $i <= $col; $i++) {
+			$sheet->getColumnDimension(getLetterOfExcelColumn($i))->setAutoSize(true);
+		}	
+
+		// CREATE TEMP FILE EXCEL, DOWNLOAD Y DELETE 
+
+        $writer = new Xlsx($spreadsheet); 
+
+		$folder = $this->config->item('files').'/tmp/';
+		 
+		$filename = 'reporte_estimación_compras_'.getCurrentDateId().'.xlsx';
+		 
+		$writer->save($folder.$filename); 
+
+		$this->load->helper('download');
+							
+		$fileContent = file_get_contents($folder.$filename);	
+
+		@unlink($folder.$filename);				
+							
+		force_download($filename,$fileContent);
+	}
 }
 
 /* End of file Reports.php */

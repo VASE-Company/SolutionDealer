@@ -152,6 +152,10 @@ class my_application {
 			$idxSubMenu++;
 			$subMenu[$idxSubMenu] = array('text'=>'Control de Entregas', 'link'=>base_url().'reports?type=partialDeliveries', 'active'=>($menuActive == 'ReportPartialDeliveries'));
 		}
+		if ($this->_existsPermission('Reports',"EstimatedPurchase",$permissions)){
+			$idxSubMenu++;		
+			$subMenu[$idxSubMenu] = array('text'=>'Estimación de Compras', 'link'=>base_url().'reports?type=estimatedPurchase', 'active'=>($menuActive == 'ReportEstimatedPurchase'));
+		}	
 		if ($idxSubMenu != -1) {
 			$active = false;
 			for ($j=0; $j < count($subMenu); $j++) {

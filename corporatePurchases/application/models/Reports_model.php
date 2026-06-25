@@ -8,41 +8,7 @@ class Reports_model extends CI_Model{
         
         $this->company_db = $this->load->database('default', TRUE); 
     }  
-
-    /*
-    function _getFilter($parameters=NULL) {
-		$filter = "";
-
-		if (isset($parameters)) {						
-			if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
-				//$filter .= " AND budgets.date >= '".$parameters['dateFromFilter']." 00:00:00' ";
-			}
-			if (isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
-				//$filter .= " AND budgets.date <= '".$parameters['dateToFilter']." 23:59:59' ";
-			}	
-			if (isset($parameters['warehouseIdFilter']) && $parameters['warehouseIdFilter'] > 0) {
-				//$filter .= " AND budgets.branchOfficeId = ".$parameters['branchOfficeIdFilter'];				
-			}				
-			if (isset($parameters['articleFilter']) && $parameters['articleFilter'] != "") {
-				$sqlArticles = "SELECT id 
-			        			FROM articles  
-								WHERE deleted = 0 AND code = '".$this->company_db->escape($parameters['articleFilter'])."'";																
-				$queryArticles = $this->company_db->query($sqlArticles);			
-				if ($queryArticles->num_rows() > 0){
-					$row = $queryArticles->row_array();
-
-					$articleId = $row['id'];					
-				} else {
-					$articleId = -1;
-				}
-				//$filter .= " AND stockMovements.articleId = ".$articleId;				
-			}													
-		}
-		
-		return $filter;
-	}
-	*/
-    
+   
 	function getSummaryStock($parameters=NULL){				
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
@@ -158,112 +124,7 @@ class Reports_model extends CI_Model{
 							 					
 			break;
 		}					
-		
-		/*
-		
-		$sqlStock = "SELECT stockMovements.articleId, stockMovements.warehouseId, stockMovements.quantity * IF(stockMovements.input=1,1,-1) AS auxQuantity, 
-				                    stockMovements.unitPrice AS auxUnitPrice, 
-				                    IF(stockMovements.input = 1 AND
-				                       stockMovements.unitPrice > 0 AND
-				                       (stockMovements.quantity - stockMovements.freeQuantity) = IF(summarySM.totalQuantity IS NULL,0,summarySM.totalQuantity)
-				                       ,
-				                       (quantity - deliveredQuantity),0) AS realQuantity   
-							 FROM stockMovements 
-							 LEFT JOIN  (
-		                             SELECT stocksByOrder.stockMovementId, SUM(quantity) AS totalQuantity
-									 FROM stocksByOrder 
-									 WHERE stocksByOrder.deleted = 0
-	                                 GROUP BY stocksByOrder.stockMovementId
-                                     ) AS summarySM
-                         	 ON stockMovements.id = summarySM.stockMovementId 
-							 WHERE deleted = 0 ".$filterMovements." 
-							 UNION ALL 
-							 SELECT detailsByBill.articleId, bills.warehouseId, detailsByBill.quantity AS auxQuantity, 
-							        detailsByBill.unitPrice AS auxUnitPrice, 
-							        IF(detailsByBill.unitPrice > 0 AND 
-							           (detailsByBill.quantity - detailsByBill.freeQuantity) = IF(summaryB.totalQuantity IS NULL,0,summaryB.totalQuantity),
-							           (detailsByBill.quantity - detailsByBill.deliveredQuantity),0) AS realQuantity   
-							 FROM (detailsByBill INNER JOIN bills ON detailsByBill.billId = bills.id)
-							 LEFT JOIN  (
-			                             SELECT stocksByOrder.detailBillId, SUM(quantity) AS totalQuantity
-										 FROM stocksByOrder 
-										 WHERE stocksByOrder.deleted = 0
-		                                 GROUP BY stocksByOrder.detailBillId
-	                                     ) AS summaryB
-	                         ON detailsByBill.id = summaryB.detailBillId  
-							 WHERE bills.deleted = 0 AND detailsByBill.deleted = 0 ".$filterMovements."
-							 UNION ALL
-							 SELECT detailsByDeliveryNotes.articleId, detailsByDeliveryNotes.warehouseId, detailsByDeliveryNotes.quantity * -1 AS auxQuantity, 
-							 		0 AS auxUnitPrice, 
-							 		0 AS realQuantity   
-							 FROM detailsByDeliveryNotes 
-							 WHERE deleted = 0 ".$filterMovements
-
-		$sql = "SELECT 
-		               summaryArticles.id,
-		               summaryArticles.code,
-		               summaryArticles.description,
-		               families.description	AS familyDescription,
-		               summaryStock.warehouseId, 
-		               summaryStock.stock,
-		               summaryStock.unitPrice,    
-		               IF(NOT summaryLastPrice.billDetailId IS NULL,summaryLastPrice.unitPrice,0) AS lastUnitPrice,
-		               IF(NOT summaryLastPrice.billDetailId IS NULL,summaryLastPrice.billDetailId,0) AS lastUnitPriceId,		               
-		               articlesLocation.corridor,
-		               articlesLocation.shelf
-		        FROM ((((
-		              (SELECT id, code, description, familyId
-		               FROM articles 
-		               WHERE articles.deleted = 0 ".$filterArticles." 
-		               ORDER by description ".
-		               $limit.") AS summaryArticles		
-		              LEFT JOIN families ON summaryArticles.familyId = families.id) 
-		        LEFT JOIN (
-		        			SELECT articleId, warehouseId, SUM(auxQuantity) AS stock, SUM(auxUnitPrice * realQuantity) / SUM(realQuantity) AS unitPrice		        			       
-							FROM (
-								".$sqlStock." 
-							) AS summary 				
-							GROUP BY articleId, warehouseId 
-		                  ) AS summaryStock ON summaryStock.articleId = summaryArticles.id)		           
-		        LEFT JOIN warehouses ON summaryStock.warehouseId = warehouses.id)
-		        LEFT JOIN articlesLocation ON articlesLocation.articleId = summaryStock.articleId AND articlesLocation.warehouseId = summaryStock.warehouseId AND articlesLocation.deleted = 0) 
-		        LEFT JOIN (
-		        	SELECT *
-					FROM (
-					SELECT 
-						bills.warehouseId, 
-					    detailsByBill.articleId, 						
-						detailsByBill.unitPrice,
-						detailsByBill.id AS billDetailId,
-						(ROW_NUMBER() OVER (PARTITION BY bills.warehouseId, detailsByBill.articleId ORDER BY bills.billDate DESC)) AS rowNumber  
-					FROM detailsByBill INNER JOIN bills ON detailsByBill.billId = bills.id                    
-					WHERE detailsByBill.deleted = 0 AND bills.deleted = 0 AND detailsByBill.unitPrice > 0
-					) AS preSummaryLastPrice					
-		        ) AS summaryLastPrice
-		        ON summaryStock.articleId = summaryLastPrice.articleId AND  
-		           summaryStock.warehouseId = summaryLastPrice.warehouseId AND  
-		           summaryLastPrice.rowNumber = 1
-		        "
-		        .$filterStock." 		        		
-				ORDER BY TRIM(summaryArticles.description), summaryArticles.id  "
-		        .$generalLimit;		
-		*/
-		/*
-		$sqlLastUnitPrice = "SELECT unitPrice 
-							 FROM (
-			                     SELECT detailsByBill.unitPrice, bills.billDate AS date 
-								 FROM detailsByBill INNER JOIN bills ON detailsByBill.billId = bills.id                    
-								 WHERE detailsByBill.deleted = 0 AND bills.deleted = 0 AND detailsByBill.unitPrice > 0 AND 
-								       detailsByBill.articleId = summaryArticles.id 					
-							 	 UNION ALL 
-							 	 SELECT stockMovements.unitPrice, stockMovements.date 
-								 FROM stockMovements 
-								 WHERE stockMovements.deleted = 0 AND stockMovements.input = 1 AND stockMovements.unitPrice > 0 AND 
-								       stockMovements.articleId = summaryArticles.id 						
-						     ) AS summaryLastUnitPrice 
-							 ORDER BY date DESC
-							 LIMIT 1 ";
-		*/
+				
 		$sql = "SELECT 
 		               summaryArticles.id,
 		               summaryArticles.code,
@@ -327,83 +188,7 @@ class Reports_model extends CI_Model{
 		}				
 
 		return $data;		
-	}  			
-
-	function getArticlesByOrder($parameters=NULL){
-
-		$data = array('list'=>NULL,
-		              'totalRecords'=>0);
-
-		$filter = "";
-		$limit = "";
-
-		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
-			$filter .= " AND DATE(orders.date) >= ".$this->company_db->escape($parameters['dateFromFilter']);
-		}
-		if (isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
-			$filter .= " AND DATE(orders.date) <= ".$this->company_db->escape($parameters['dateToFilter']);
-		}
-		if (isset($parameters['stateIdFilter']) && $parameters['stateIdFilter'] != "") {
-			$filter .= " AND orders.stateId = ".$this->company_db->escape($parameters['stateIdFilter']);
-		}
-		if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] > 0) {
-			$filter .= " AND branchOffices.companyId = ".(int)$parameters['companyIdFilter'];
-		}
-		if (isset($parameters['branchOfficeIdFilter']) && $parameters['branchOfficeIdFilter'] > 0) {
-			$filter .= " AND orders.branchOfficeId = ".(int)$parameters['branchOfficeIdFilter'];
-		}
-		if (isset($parameters['familyIdFilter']) && $parameters['familyIdFilter'] > 0) {
-			$filter .= " AND articles.familyId = ".(int)$parameters['familyIdFilter'];
-		}
-		if (isset($parameters['articleFilter']) && trim($parameters['articleFilter']) != "") {
-			$articleFilter = trim($parameters['articleFilter']);
-			$filter .= " AND (detailsByOrder.code LIKE ".$this->company_db->escape("%".$articleFilter."%")." OR ";
-			$filter .= "detailsByOrder.description LIKE ".$this->company_db->escape("%".$articleFilter."%").")";
-		}
-		if (isset($parameters['limit']) && $parameters['limit'] > 0) {
-			$limit = " LIMIT ".(int)$parameters['limit'];
-		}
-
-		$sql = "SELECT SQL_CALC_FOUND_ROWS ";
-		$sql .= "orders.id AS orderId, ";
-		$sql .= "orders.date AS orderDate, ";
-		$sql .= "orders.subject, ";
-		$sql .= "orders.stateId, ";
-		$sql .= "ordersStates.description AS stateDescription, ";
-		$sql .= "companies.id AS companyId, ";
-		$sql .= "companies.description AS companyDescription, ";
-		$sql .= "branchOffices.description AS branchOfficeDescription, ";
-		$sql .= "sectors.description AS sectorDescription, ";
-		$sql .= "detailsByOrder.id AS detailOrderId, ";
-		$sql .= "detailsByOrder.code AS articleCode, ";
-		$sql .= "detailsByOrder.description AS articleDescription, ";
-		$sql .= "IF(ISNULL(families.id),'',families.description) AS familyDescription, ";
-		$sql .= "detailsByOrder.quantity, ";
-		$sql .= "detailsByOrder.deliveredQuantity, ";
-		$sql .= "IFNULL(detailsByOrder.canceledQuantity,0) AS canceledQuantity, ";
-		$sql .= "detailsByOrder.unitPrice, ";
-		$sql .= "detailsByOrder.total ";
-		$sql .= "FROM ((((((orders INNER JOIN detailsByOrder ON orders.id = detailsByOrder.orderId) ";
-		$sql .= "INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id) ";
-		$sql .= "INNER JOIN companies ON branchOffices.companyId = companies.id) ";
-		$sql .= "LEFT JOIN sectors ON orders.sectorId = sectors.id) ";
-		$sql .= "LEFT JOIN ordersStates ON orders.stateId = ordersStates.id) ";
-		$sql .= "LEFT JOIN articles ON detailsByOrder.articleId = articles.id) ";
-		$sql .= "LEFT JOIN families ON articles.familyId = families.id ";
-		$sql .= "WHERE orders.deleted = 0 AND detailsByOrder.deleted = 0 ";
-		$sql .= $filter." ";
-		$sql .= "ORDER BY orders.date DESC, orders.id DESC, detailsByOrder.id ";
-		$sql .= $limit;
-
-		$query = $this->company_db->query($sql);
-		$queryTotal = $this->company_db->query("SELECT FOUND_ROWS() AS totalRecords");
-		if ($query->num_rows() > 0) {
-			$data = array('list'=>$query->result_array(),
-		                  'totalRecords'=>$queryTotal->row()->totalRecords);
-		}
-
-		return $data;
-	}
+	}  				
 
 	function getPartialDeliveries($parameters=NULL){
 
@@ -689,7 +474,6 @@ class Reports_model extends CI_Model{
 
 		return $data;		
 	} 
-
 
 	function getEstimatedPurchase($parameters=NULL){				
 		$data = array('list'=>NULL, 
@@ -988,8 +772,8 @@ class Reports_model extends CI_Model{
 		}
 
 		return $data;		
-	}  			
-
+	}  		
+	
 }
 
 
