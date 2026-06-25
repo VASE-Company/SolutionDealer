@@ -55,8 +55,8 @@
         </select>
     </div>
     <div class="form-group" style="width:140px; float:left; margin-right:10px;">
-        <label for="articleFilter">Cod. Articulo</label>
-        <input type="text" class="form-control form-control-sm noEnterMyApp" id="articleFilter" name="articleFilter" placeholder="Articulo" autocomplete="off" value="">
+        <label for="articleFilter">Cód./Artículo</label>
+        <input type="text" class="form-control form-control-sm noEnterMyApp" id="articleFilter" name="articleFilter" placeholder="Artículo" autocomplete="off" value="">
     </div>
 </div>
 <?php

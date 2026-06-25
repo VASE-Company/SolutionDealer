@@ -584,17 +584,17 @@
                                         <div class="dropdown-menu">
                                             <?php if (($allowSeeFreeQuantity || $allowSeeDetailsImports) && (int)$details[$i]['affectsStock'] == 1) { ?>
                                             <a class="dropdown-item" href="javascript:seeOrderItemData(<?php echo $row; ?>,'<?php echo ($allowSeeFreeQuantity || $allowSeeDetailsImports?"ALL":($allowSeeFreeQuantity?"IMP":"QUA")); ?>')">Detalle Stock</a>
-                                            <? } ?>                                            
+                                            <?php } ?>                                            
                                             <?php if ($seeCancelItem) { ?>
                                             <a class="dropdown-item" href="javascript:seeCancelItemOrderEdit(<?php echo $row; ?>)">Cancelación Artículos</a>                                                                                    
-                                            <? } ?>                                            
+                                            <?php } ?>                                            
                                             <?php if ($allowSeeBudgets && $details[$i]['id'] > 0) { ?>                                               
                                             <a class="dropdown-item" href="javascript:seeBudgetsItemOrderEdit(<?php echo $row; ?>)">Presupuestos Asociados</a>                                                                                    
-                                            <? } ?>                                                
+                                            <?php } ?>                                                
                                         </div>
                                     </div>                              
                                 </td>                 
-                                <? } ?>                                                    
+                                <?php } ?>                                                    
                             </tr>
                             <?php } ?>                            
                         <?php } ?>
@@ -737,7 +737,7 @@
                     </table> 
                 </div>                    
             </div> 
-            <<?php } ?> 
+            <?php } ?> 
             <?php } ?>            
             <?php if ($allowSeeAttachments && !$allowSaveOnlyObservation) { ?>
             <div class="form-group row">

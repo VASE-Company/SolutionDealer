@@ -1,20 +1,18 @@
-﻿<?php
+<?php
+   $pagination = (isset($data['pagination'])?$data['pagination']:"");
    $data = $data['data'];
 ?>
 <div class="card">
     <div class="card-body">
+        <?php if (isset($data) && count($data) > 0 && $allowExport) { ?>
         <div class="row">
-            <label class="col-form-label col-form-label-sm col-xs-12 col-sm-12 col-md-12 col-lg-12">
-            * Se mostraran los primeros 50 resultados, para ver el informe completo debe exportarlo.
-            <?php if (isset($data) && count($data) > 0 && $allowExport) { ?>
-            <a href="javascript:generalExport('reports/export','<?php echo $filterExportGet; ?>');" class="btn without-padding" title="exportar">
-                <i class="fas fa-download"></i>
-            </a>
-            <?php
-                }
-            ?>
-            </label>
+            <div class="col-sm-12">
+                <a href="javascript:generalExport('reports/export','<?php echo $filterExportGet; ?>');" class="pagination pagination-sm paginate_button page-item page-link" title="exportar" style="float:left; margin-right:5px;padding: 4px 8px 5px 8px;">
+                    <i class="fas fa-download"></i>
+                </a>
+            </div>
         </div>
+        <?php } ?>
         <div class="row">
             <div class="col-sm-12" style="overflow:auto;">
                 <table id="grData" class="table table-bordered table-sm">
@@ -25,15 +23,15 @@
                             <th nowrap="nowrap">Empresa</th>
                             <th nowrap="nowrap">Sucursal</th>
                             <th nowrap="nowrap">Rubro</th>
-                            <th nowrap="nowrap">Articulo</th>
+                            <th nowrap="nowrap">Artículo</th>
                             <th nowrap="nowrap">Plazo</th>
                             <th nowrap="nowrap">Fecha Plazo</th>
                             <th nowrap="nowrap">Demora</th>
                             <th nowrap="nowrap">Estado Pedido</th>
                             <th nowrap="nowrap">Estado Entrega</th>
                             <th nowrap="nowrap">Cantidad</th>
-                            <th nowrap="nowrap">Situacion</th>
-                            <th nowrap="nowrap">Nro Orden</th>
+                            <th nowrap="nowrap">Situación</th>
+                            <th nowrap="nowrap">N° Orden</th>
                             <th nowrap="nowrap">Remitos</th>
                         </tr>
                     </thead>
@@ -73,6 +71,13 @@
                 </table>
             </div>
         </div>
+        <?php if ($pagination != "") { ?>
+        <div class="row">
+            <div class="col-sm-12">
+                <?php echo $pagination; ?>
+            </div>
+        </div>
+        <?php } ?>
     </div>
     <!-- /.card-body -->
 </div>

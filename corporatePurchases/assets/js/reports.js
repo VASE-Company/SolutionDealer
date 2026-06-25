@@ -136,6 +136,49 @@ function intializePartialDeliveriesReport() {
 	selectCompanyReports();
 }
 
+validateDataReports = function() {
+	if ($('#type').val() == 'general' && $('#subtypeFilter').val() == 'PRO') {	
+		if ($('#dateFromFilter') != null && $('#dateFromFilter').val() == "") {
+			alert('Debe seleccionar el rango de fecha a mostrar.')
+			return false;
+		}	
+
+		if ($('#dateToFilter') != null && $('#dateToFilter').val() == "") {
+			alert('Debe seleccionar el rango de fecha a mostrar.')
+			return false;
+		}
+
+		if (!isValidPeriod($('#dateFromFilter').val(), $('#dateToFilter').val())) {
+			alert('El rango de fecha a mostrar no es válido.')
+			return false;
+		}
+
+		if (monthsDifference($('#dateFromFilter').val(), $('#dateToFilter').val()) >=12) {
+			alert('El rango de fecha para este tipo de reporte no puede contemplar más de 12 meses.')
+			return false;	
+		}		
+	}
+
+	if ($('#type').val() == 'partialdeliveries') {
+		if ($('#dateFromFilter') != null && $('#dateToFilter') != null && $('#dateFromFilter').val() != "" && $('#dateToFilter').val() != "") {
+			if (!isValidPeriod($('#dateFromFilter').val(), $('#dateToFilter').val())) {
+				alert('El rango de fechas de plazo no es válido.')
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+function reloadResultsPartialDeliveries(url) {
+	if (url == null) url = "";
+
+	if (url != "") {
+		loadDataByAjax(url,'data',null,null,null,'fadeIn');
+	}
+}
+
 // -----------------------------------------------------
 
 // --------------------- GRAPHIC ---------------------

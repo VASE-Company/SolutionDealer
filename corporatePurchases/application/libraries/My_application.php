@@ -148,10 +148,6 @@ class my_application {
 			$idxSubMenu++;		
 			$subMenu[$idxSubMenu] = array('text'=>'Reporte General', 'link'=>base_url().'reports?type=general', 'active'=>($menuActive == 'ReportGeneral'));
 		}											
-		if ($this->_existsPermission('Reports',"ArticlesByOrder",$permissions)){
-			$idxSubMenu++;		
-			$subMenu[$idxSubMenu] = array('text'=>'Reporte de Art. x Pedidos', 'link'=>base_url().'reports?type=articlesByOrder', 'active'=>($menuActive == 'ReportArticlesByOrder'));
-		}																
 		if ($this->_existsPermission('Reports',"PartialDeliveries",$permissions)){
 			$idxSubMenu++;
 			$subMenu[$idxSubMenu] = array('text'=>'Control de Entregas', 'link'=>base_url().'reports?type=partialDeliveries', 'active'=>($menuActive == 'ReportPartialDeliveries'));

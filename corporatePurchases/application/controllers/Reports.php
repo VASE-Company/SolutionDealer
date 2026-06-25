@@ -232,12 +232,14 @@ class Reports extends CI_Controller {
 
 		$parameters = NULL;
 		$filterExportGet = "";
+		$pageParameters = NULL;
 		
 		foreach ($data as $key => $values) {
 			$parameters[$key] = $values['value'];
 			if (isset($values['getField']) && $values['getField'] != "" &&				
 		        $values['value'] != NULL && $values['value'] != "") { 	
 		    	$filterExportGet .= "&".$values['getField']."=".$values['value'];	
+		    	$pageParameters[$values['getField']] = $values['value'];
 			}
 		}
 		if (isset($parameters['type'])) {
@@ -246,15 +248,17 @@ class Reports extends CI_Controller {
 
 		$parametersdData['parameters'] = $parameters;	
 		$parametersdData['filterExportGet'] = $filterExportGet;	
+		$parametersdData['pageParameters'] = $pageParameters;	
 		
 		return $parametersdData;	
 	}
 
-	function result() {
+	function result($page=1) {
 		if (!$this->session->userdata('userLoggedIn') || !$this->_hasPermission()) exit;		
 
 		$parametersdData = $this->_getParameters();										
 		$parameters = $parametersdData['parameters'];
+		$parameters['page'] = $page;
 
 		if (isset($parameters['valueTypeIdFilter'])) {
 			$contentData['decimalValues'] = ($parameters['valueTypeIdFilter'] == "AMO");
@@ -267,6 +271,13 @@ class Reports extends CI_Controller {
 		$contentData['allowExport'] = $this->my_application->hasPermission("Reports","Export");		
 		$contentData['allowSeeBudgets'] = $this->my_application->hasPermission("Budgets","See");																
 		$contentData['byAjax'] = true;	
+
+		if ($parameters["type"] == "partialdeliveries") {
+			$pageConfiguration = getPageConfiguration(base_url().'reports/result',$this->config->item('recordsPerPage'),$contentData['data']["totalRecords"],$parametersdData['pageParameters']);
+			$pageConfiguration['first_url'] = base_url().'reports/result?'.http_build_query($parametersdData['pageParameters'], '', "&");
+			$this->pagination->initialize($pageConfiguration);
+			$contentData['data']["pagination"] = convertPageToAjax(applyPageStyles($this->pagination->create_links()),'reloadResultsPartialDeliveries');
+		}
 
 		$viewName = "reports/reports_".$parameters["type"];
 		if (isset($parameters['subtypeFilter'])) {
@@ -367,11 +378,12 @@ class Reports extends CI_Controller {
 	function _getDataPartialDeliveries($parameters) {
 
 		if (!(isset($parameters['export']) && $parameters['export'] == true)) {
-			$parameters['limit'] = 50;
+			$parameters['recordsPerPage'] = $this->config->item('recordsPerPage');
 		}
 
 		$partialDeliveries = $this->reports->getPartialDeliveries($parameters);
 		$data['data'] = $partialDeliveries['list'];
+		$data['totalRecords'] = $partialDeliveries['totalRecords'];
 
 		return $data;
 	}
@@ -970,15 +982,15 @@ class Reports extends CI_Controller {
 			"Empresa",
 			"Sucursal",
 			"Rubro",
-			"Articulo",
+			"Artículo",
 			"Plazo",
 			"Fecha Plazo",
 			"Demora",
 			"Estado Pedido",
 			"Estado Entrega",
 			"Cantidad",
-			"Situacion",
-			"Nro Orden",
+			"Situación",
+			"N° Orden",
 			"Remitos"
 		);
 

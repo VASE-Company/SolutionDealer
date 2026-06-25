@@ -1,2 +1,9 @@
-﻿INSERT INTO `permissions` (`id`, `module`, `action`, `description`, `active`, `deleted`)
-VALUES (NULL, 'Reports', 'PartialDeliveries', 'Ver <strong>reporte de entregas parciales</strong>', '1', '0');
+INSERT INTO `permissions` (`id`, `module`, `action`, `description`, `active`, `deleted`)
+SELECT NULL, 'Reports', 'PartialDeliveries', 'Ver <strong>reporte de entregas parciales</strong>', '1', '0'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `permissions`
+    WHERE `module` = 'Reports'
+      AND `action` = 'PartialDeliveries'
+      AND `deleted` = '0'
+);

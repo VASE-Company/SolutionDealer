@@ -432,21 +432,19 @@ class Reports_model extends CI_Model{
 			$filter .= " AND articles.familyId = ".$parameters['familyIdFilter'];
 		}
 		if (isset($parameters['articleFilter']) && $parameters['articleFilter'] != "") {
-			$sqlArticles = "SELECT id
-							FROM articles
-							WHERE deleted = 0 AND code = ".$this->company_db->escape($parameters['articleFilter']);
-			$queryArticles = $this->company_db->query($sqlArticles);
-			if ($queryArticles->num_rows() > 0){
-				$row = $queryArticles->row_array();
-
-				$articleId = $row['id'];
-			} else {
-				$articleId = -1;
-			}
-			$filter .= " AND detailsByOrder.articleId = ".$articleId;
+			$articleFilter = trim($parameters['articleFilter']);
+			$filter .= " AND (detailsByOrder.code LIKE ".$this->company_db->escape("%".$articleFilter."%")." OR ";
+			$filter .= "detailsByOrder.description LIKE ".$this->company_db->escape("%".$articleFilter."%").")";
 		}
-		if (isset($parameters['limit']) && $parameters['limit'] > 0) {
-			$limit = " LIMIT ".$parameters['limit'];
+		if (isset($parameters['recordsPerPage']) && $parameters['recordsPerPage'] > 0) {
+			$page = 1;
+			if (isset($parameters['page']) && $parameters['page'] > 0) {
+				$page = (int)$parameters['page'];
+			}
+			$fromRecord = ($page == 1?0:(($page - 1) * (int)$parameters['recordsPerPage']));
+			$limit = " LIMIT ".$fromRecord.",".(int)$parameters['recordsPerPage'];
+		} else if (isset($parameters['limit']) && $parameters['limit'] > 0) {
+			$limit = " LIMIT ".(int)$parameters['limit'];
 		}
 
 		// Las cantidades se calculan desde remitos vigentes para evitar depender del cache del detalle.
@@ -467,9 +465,9 @@ class Reports_model extends CI_Model{
 		$sql .= "IF(ISNULL(families.id),'',families.description) AS familyDescription, ";
 		$sql .= "(detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) AS requestedQuantity, ";
 		$sql .= "IFNULL(deliveryNotesSummary.deliveredQuantity,0) AS deliveredQuantity, ";
-		$sql .= "IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) >= (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)),'Entrega Completa',IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) > 0,'Entrega Parcial','Sin Entregar Aun')) AS deliveryStateDescription, ";
+		$sql .= "IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) >= (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)),'Entrega Completa',IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) > 0,'Entrega Parcial','Sin Entregar Aún')) AS deliveryStateDescription, ";
 		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),'Vencido',IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy','No vencido'))) AS dueSituationDescription, ";
-		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),CONCAT('Vencido hace ',DATEDIFF(CURDATE(),DATE(orders.maximumDate)),' dias'),IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy',CONCAT('Faltan ',DATEDIFF(DATE(orders.maximumDate),CURDATE()),' dias')))) AS delayDescription, ";
+		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),CONCAT('Vencido hace ',DATEDIFF(CURDATE(),DATE(orders.maximumDate)),' días'),IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy',CONCAT('Faltan ',DATEDIFF(DATE(orders.maximumDate),CURDATE()),' días')))) AS delayDescription, ";
 		$sql .= "IF(ISNULL(purchasesOrders.id) OR purchasesOrders.id <= 0,'',CONCAT(purchasesOrders.id,'-',companies.id,'-',DATE_FORMAT(purchasesOrders.date,'%m%y'))) AS purchaseOrderNumber, ";
 		$sql .= "IFNULL(deliveryNotesSummary.deliveryNotes,'') AS deliveryNotes ";
 		$sql .= "FROM ((((((orders INNER JOIN detailsByOrder ON orders.id = detailsByOrder.orderId) ";
