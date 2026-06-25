@@ -211,6 +211,8 @@ class Reports extends CI_Controller {
 		$data['branchOfficeIdFilter'] = array('getField'=>'bo');	
 		$data['sectorIdFilter'] = array('getField'=>'sec');	
 		$data['stateIdFilter'] = array('getField'=>'sta');
+		// Control de Entregas: este parametro viaja por filtros, paginado y exportacion.
+		$data['deliveryStateIdFilter'] = array('getField'=>'dsta');
 		$data['groupedByFilter'] = array('getField'=>'grb');	
 		$data['subtypeFilter'] = array('getField'=>'stype');	
 		$data['valueTypeIdFilter'] = array('getField'=>'vt');	
@@ -974,7 +976,8 @@ class Reports extends CI_Controller {
 		$sheet->setCellValue('A'.$row,"CONTROL DE ENTREGAS");
 		$styleCell = array('font'=>array('bold'=>true,'size'=>16));
 		$sheet->getStyle('A'.$row)->applyFromArray($styleCell);
-		$sheet->mergeCells('A'.$row.':'.'O'.$row);
+		// El export queda alineado con la grilla: se retiro la columna Remitos.
+		$sheet->mergeCells('A'.$row.':'.'N'.$row);
 
 		$headers = array(
 			"Pedido",
@@ -991,7 +994,6 @@ class Reports extends CI_Controller {
 			"Cantidad",
 			"Situación",
 			"N° Orden",
-			"Remitos"
 		);
 
 		$row = 3;
@@ -1048,8 +1050,6 @@ class Reports extends CI_Controller {
 				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['dueSituationDescription']);
 				$col++;
 				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['purchaseOrderNumber']);
-				$col++;
-				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['deliveryNotes']);
 			}
 		}
 

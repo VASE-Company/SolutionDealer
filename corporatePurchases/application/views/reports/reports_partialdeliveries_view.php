@@ -32,15 +32,26 @@
                             <th nowrap="nowrap">Cantidad</th>
                             <th nowrap="nowrap">Situación</th>
                             <th nowrap="nowrap">N° Orden</th>
-                            <th nowrap="nowrap">Remitos</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
                             if (isset($data)) {
                                 for ($i=0; $i < count($data); $i++) {
-                                    $quantityDescription = (int)$data[$i]['deliveredQuantity']."/".(int)$data[$i]['requestedQuantity'];
+                                    // Estado Entrega visual: se pinta con la misma regla usada por el filtro backend.
+                                    $deliveredQuantity = (float)$data[$i]['deliveredQuantity'];
+                                    $requestedQuantity = (float)$data[$i]['requestedQuantity'];
+                                    $quantityDescription = (int)$deliveredQuantity."/".(int)$requestedQuantity;
                                     $maximumDate = (trim($data[$i]['maximumDate']) != ""?dateFormat($data[$i]['maximumDate'],false):"");
+                                    $deliveryStateClass = "badge-danger";
+                                    $deliveryStateIcon = "fa-times-circle";
+                                    if ($requestedQuantity > 0 && $deliveredQuantity >= $requestedQuantity) {
+                                        $deliveryStateClass = "badge-success";
+                                        $deliveryStateIcon = "fa-check-circle";
+                                    } else if ($deliveredQuantity > 0) {
+                                        $deliveryStateClass = "badge-warning";
+                                        $deliveryStateIcon = "fa-clock";
+                                    }
                         ?>
                         <tr ondblclick="onClick('btnEditReportOrder<?php echo $data[$i]['orderId']; ?>_<?php echo $data[$i]['detailOrderId']; ?>')">
                             <td nowrap="nowrap" class="text-center">
@@ -57,11 +68,14 @@
                             <td nowrap="nowrap" class="text-center"><?php echo $maximumDate; ?></td>
                             <td nowrap="nowrap"><?php echo $data[$i]['delayDescription']; ?></td>
                             <td nowrap="nowrap"><?php echo $data[$i]['stateDescription']; ?></td>
-                            <td nowrap="nowrap"><?php echo $data[$i]['deliveryStateDescription']; ?></td>
+                            <td nowrap="nowrap">
+                                <span class="badge badge-pill <?php echo $deliveryStateClass; ?>" style="font-size:12px;padding:6px 10px;">
+                                    <i class="fas <?php echo $deliveryStateIcon; ?>" style="margin-right:4px;"></i><?php echo $data[$i]['deliveryStateDescription']; ?>
+                                </span>
+                            </td>
                             <td nowrap="nowrap" class="text-center"><?php echo $quantityDescription; ?></td>
                             <td nowrap="nowrap"><?php echo $data[$i]['dueSituationDescription']; ?></td>
                             <td nowrap="nowrap"><?php echo $data[$i]['purchaseOrderNumber']; ?></td>
-                            <td nowrap="nowrap"><?php echo $data[$i]['deliveryNotes']; ?></td>
                         </tr>
                         <?php
                                 }

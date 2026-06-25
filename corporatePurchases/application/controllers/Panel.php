@@ -21,7 +21,8 @@ class Panel extends CI_Controller {
 		
 	function _loadScreen() {
 
-		if (!$this->session->userdata('userLoggedIn')) {									
+		// Guardia de sesion del panel; se deja limpia porque un caracter suelto aca rompe el controlador completo.
+		if (!$this->session->userdata('userLoggedIn')) {
 			redirect('/main/logout');	
 		} else {			
 

@@ -407,12 +407,13 @@ class Reports_model extends CI_Model{
 
 	function getPartialDeliveries($parameters=NULL){
 
-		$data = array('list'=>NULL,
+		$data = array('list'=>array(),
 		              'totalRecords'=>0);
 
 		$filter = "";
 		$limit = "";
 
+		// Control de Entregas: estos filtros se aplican a nivel item de pedido.
 		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
 			$filter .= " AND DATE(orders.maximumDate) >= ".$this->company_db->escape($parameters['dateFromFilter']);
 		}
@@ -422,14 +423,32 @@ class Reports_model extends CI_Model{
 		if (isset($parameters['stateIdFilter']) && $parameters['stateIdFilter'] != "") {
 			$filter .= " AND orders.stateId = ".$this->company_db->escape($parameters['stateIdFilter']);
 		}
+		// Estado Entrega se calcula igual que la grilla: entregado vs cantidad solicitada vigente.
+		if (isset($parameters['deliveryStateIdFilter']) && $parameters['deliveryStateIdFilter'] != "") {
+			$requestedQuantity = "(detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0))";
+			$deliveredQuantity = "IFNULL(deliveryNotesSummary.deliveredQuantity,0)";
+			switch ($parameters['deliveryStateIdFilter']) {
+				case "COMPLETE":
+					$filter .= " AND ".$deliveredQuantity." >= ".$requestedQuantity;
+				break;
+
+				case "PARTIAL":
+					$filter .= " AND ".$deliveredQuantity." > 0 AND ".$deliveredQuantity." < ".$requestedQuantity;
+				break;
+
+				case "PENDING":
+					$filter .= " AND ".$deliveredQuantity." = 0";
+				break;
+			}
+		}
 		if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] > 0) {
-			$filter .= " AND branchOffices.companyId = ".$parameters['companyIdFilter'];
+			$filter .= " AND branchOffices.companyId = ".(int)$parameters['companyIdFilter'];
 		}
 		if (isset($parameters['branchOfficeIdFilter']) && $parameters['branchOfficeIdFilter'] > 0) {
-			$filter .= " AND orders.branchOfficeId = ".$parameters['branchOfficeIdFilter'];
+			$filter .= " AND orders.branchOfficeId = ".(int)$parameters['branchOfficeIdFilter'];
 		}
 		if (isset($parameters['familyIdFilter']) && $parameters['familyIdFilter'] > 0) {
-			$filter .= " AND articles.familyId = ".$parameters['familyIdFilter'];
+			$filter .= " AND articles.familyId = ".(int)$parameters['familyIdFilter'];
 		}
 		if (isset($parameters['articleFilter']) && $parameters['articleFilter'] != "") {
 			$articleFilter = trim($parameters['articleFilter']);
@@ -449,11 +468,13 @@ class Reports_model extends CI_Model{
 
 		// Las cantidades se calculan desde remitos vigentes para evitar depender del cache del detalle.
 		// El plazo se lee de orders.maximumDate porque es la fecha real de cumplimiento.
+		// CAST evita el error de MySQL moderno con el literal DATE '0000-00-00'.
+		$withoutMaximumDate = "(orders.maximumDate IS NULL OR CAST(orders.maximumDate AS CHAR) = '0000-00-00')";
 		$sql = "SELECT SQL_CALC_FOUND_ROWS ";
 		$sql .= "orders.id AS orderId, ";
 		$sql .= "orders.date AS orderDate, ";
 		$sql .= "orders.maximumDays, ";
-		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','',orders.maximumDate) AS maximumDate, ";
+		$sql .= "IF(".$withoutMaximumDate.",'',orders.maximumDate) AS maximumDate, ";
 		$sql .= "orders.stateId, ";
 		$sql .= "ordersStates.description AS stateDescription, ";
 		$sql .= "companies.id AS companyId, ";
@@ -466,24 +487,25 @@ class Reports_model extends CI_Model{
 		$sql .= "(detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) AS requestedQuantity, ";
 		$sql .= "IFNULL(deliveryNotesSummary.deliveredQuantity,0) AS deliveredQuantity, ";
 		$sql .= "IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) >= (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)),'Entrega Completa',IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) > 0,'Entrega Parcial','Sin Entregar Aún')) AS deliveryStateDescription, ";
-		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),'Vencido',IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy','No vencido'))) AS dueSituationDescription, ";
-		$sql .= "IF(orders.maximumDate IS NULL OR DATE(orders.maximumDate) = '0000-00-00','Sin plazo',IF(DATE(orders.maximumDate) < CURDATE(),CONCAT('Vencido hace ',DATEDIFF(CURDATE(),DATE(orders.maximumDate)),' días'),IF(DATE(orders.maximumDate) = CURDATE(),'Vence hoy',CONCAT('Faltan ',DATEDIFF(DATE(orders.maximumDate),CURDATE()),' días')))) AS delayDescription, ";
+		$sql .= "IF(".$withoutMaximumDate.",'Sin plazo',IF(orders.maximumDate < CURDATE(),'Vencido',IF(orders.maximumDate = CURDATE(),'Vence hoy','No vencido'))) AS dueSituationDescription, ";
+		$sql .= "IF(".$withoutMaximumDate.",'Sin plazo',IF(orders.maximumDate < CURDATE(),CONCAT('Vencido hace ',DATEDIFF(CURDATE(),orders.maximumDate),' días'),IF(orders.maximumDate = CURDATE(),'Vence hoy',CONCAT('Faltan ',DATEDIFF(orders.maximumDate,CURDATE()),' días')))) AS delayDescription, ";
 		$sql .= "IF(ISNULL(purchasesOrders.id) OR purchasesOrders.id <= 0,'',CONCAT(purchasesOrders.id,'-',companies.id,'-',DATE_FORMAT(purchasesOrders.date,'%m%y'))) AS purchaseOrderNumber, ";
 		$sql .= "IFNULL(deliveryNotesSummary.deliveryNotes,'') AS deliveryNotes ";
-		$sql .= "FROM ((((((orders INNER JOIN detailsByOrder ON orders.id = detailsByOrder.orderId) ";
-		$sql .= "INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id) ";
+		// Se usan nombres reales de tablas en minuscula para que funcione tambien en servidores Linux.
+		$sql .= "FROM ((((((orders INNER JOIN detailsbyorder AS detailsByOrder ON orders.id = detailsByOrder.orderId) ";
+		$sql .= "INNER JOIN branchoffices AS branchOffices ON orders.branchOfficeId = branchOffices.id) ";
 		$sql .= "INNER JOIN companies ON branchOffices.companyId = companies.id) ";
-		$sql .= "LEFT JOIN ordersStates ON orders.stateId = ordersStates.id) ";
+		$sql .= "LEFT JOIN ordersstates AS ordersStates ON orders.stateId = ordersStates.id) ";
 		$sql .= "LEFT JOIN articles ON detailsByOrder.articleId = articles.id) ";
 		$sql .= "LEFT JOIN families ON articles.familyId = families.id) ";
-		$sql .= "LEFT JOIN purchasesOrders ON purchasesOrders.orderId = orders.id ";
+		$sql .= "LEFT JOIN purchasesorders AS purchasesOrders ON purchasesOrders.orderId = orders.id ";
 		$sql .= "LEFT JOIN ( ";
 		$sql .= "	SELECT detailsByDeliveryNotes.detailOrderId, ";
 		$sql .= "		   SUM(detailsByDeliveryNotes.quantity) AS deliveredQuantity, ";
 		$sql .= "		   GROUP_CONCAT(DISTINCT CONCAT(deliveryNotes.id,'-',branchOffices.companyId,'-',DATE_FORMAT(deliveryNotes.date,'%m%y')) ORDER BY deliveryNotes.id SEPARATOR ', ') AS deliveryNotes ";
-		$sql .= "	FROM (detailsByDeliveryNotes INNER JOIN deliveryNotes ON detailsByDeliveryNotes.deliveryNoteId = deliveryNotes.id) ";
+		$sql .= "	FROM (detailsbydeliverynotes AS detailsByDeliveryNotes INNER JOIN deliverynotes AS deliveryNotes ON detailsByDeliveryNotes.deliveryNoteId = deliveryNotes.id) ";
 		$sql .= "	INNER JOIN orders ON deliveryNotes.orderId = orders.id ";
-		$sql .= "	INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id ";
+		$sql .= "	INNER JOIN branchoffices AS branchOffices ON orders.branchOfficeId = branchOffices.id ";
 		$sql .= "	WHERE detailsByDeliveryNotes.deleted = 0 AND deliveryNotes.deleted = 0 AND orders.deleted = 0 ";
 		$sql .= "	GROUP BY detailsByDeliveryNotes.detailOrderId ";
 		$sql .= ") AS deliveryNotesSummary ON deliveryNotesSummary.detailOrderId = detailsByOrder.id ";
@@ -494,11 +516,19 @@ class Reports_model extends CI_Model{
 		$sql .= $limit;
 
 		$query = $this->company_db->query($sql);
-		$queryTotal = $this->company_db->query("SELECT FOUND_ROWS() AS totalRecords");
-		if ($query->num_rows() > 0) {
-			$data = array('list'=>$query->result_array(),
-		                  'totalRecords'=>$queryTotal->row()->totalRecords);
+		if (!$query) {
+			$error = $this->company_db->error();
+			log_message('error','getPartialDeliveries query failed: '.$error['code'].' - '.$error['message']);
+			return $data;
 		}
+
+		$queryTotal = $this->company_db->query("SELECT FOUND_ROWS() AS totalRecords");
+		$totalRecords = $query->num_rows();
+		if ($queryTotal && $queryTotal->num_rows() > 0) {
+			$totalRecords = $queryTotal->row()->totalRecords;
+		}
+		$data = array('list'=>$query->result_array(),
+	                  'totalRecords'=>$totalRecords);
 
 		return $data;
 	}
