@@ -1,0 +1,2 @@
+
+INSERT INTO `permissions` (`id`, `module`, `action`, `description`, `active`, `deleted`) VALUES (NULL, 'Reports', 'EstimatedPurchase', 'Ver <strong>reporte de compra estimada</strong>', '1', '0');

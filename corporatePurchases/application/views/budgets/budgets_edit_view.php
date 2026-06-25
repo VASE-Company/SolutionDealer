@@ -48,7 +48,7 @@
                 </div> 
             </div>  
             <div class="form-group row">                    
-                <label for="supplierCode" class="col-form-label col-form-label-sm col-xs-2 col-sm-2 col-md-2 col-lg-2 text-right">CUIT:</label>
+                <label for="supplierCode" class="col-form-label col-form-label-sm col-xs-2 col-sm-2 col-md-2 col-lg-2 text-right">CUIT (F2 buscar):</label>
                 <div class="col-xs-2 col-sm-2 col-md-2 col-lg-2">
                     <input id="supplierCode" name="supplierCode" class="form-control form-control-sm noEnterMyApp <?php echo errorClass("supplierCode"); ?>" placeholder="CUIT" <?php echo errorTitle("supplierCode"); ?> autocomplete="off" value="<?php echo set_value('supplierCode',$budget['supplierCode']); ?>" style="width:120px;float:left;" <?php echo $disabled; ?> onblur="searchSupplierBudgetEdit()" required="1">                    
                     <input type="hidden" id="supplierCodeOriginal" name="supplierCodeOriginal" value="<?php echo set_value('supplierCode',$budget['supplierCode']); ?>"> 
@@ -74,7 +74,7 @@
                         <?php 
                             for ($i=0; $i < count($billLetters); $i++) {
                                 if (validation_errors() != "" || (isset($billLetters) && $error != "")) {
-                                    $selected = set_select('billLetter', $origins[$i]['id']);
+                                    $selected = set_select('billLetter', $billLetters[$i]['id']);
                                 } else {
                                     $selected = ($budget['billLetter'] == $billLetters[$i]['id']?' selected="selected" ':'');                  
                                 }
@@ -137,7 +137,7 @@
                         </thead>                            
                         <tbody>
                         <?php 
-                            $details = $budget['details'];
+                            $details = $budget['details'];                            
 
                             $detailsCount = 0;
                             if (isset($details)) { 

@@ -863,7 +863,7 @@ class Orders extends CI_Controller {
 		  		switch ($userRol) {
 		  			case "manager":
 		  				$meStates = array("PROG", "DETUSR", "BUDGET", "AUTBUY", "TOPAY","PENSUP","INDIST","READY");
-		  				if (in_array($order["stateId"], $meStates) && (float)$order['managerId'] == $this->session->userdata('userId')) {
+		  				if (in_array($order["stateId"], $meStates) && ((float)$order['managerId'] == $this->session->userdata('userId') || (float)$order['submanagerId'] == $this->session->userdata('userId'))) {
 		  					$contentData['allowEditDetailImports'] = true;					  	
 		  				} else {
 		  					$contentData['allowSave'] = true;	

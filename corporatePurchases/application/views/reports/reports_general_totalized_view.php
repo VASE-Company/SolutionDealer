@@ -27,7 +27,7 @@
             </label>            
         </div> 
         <div class="row">
-            <div class="col-sm-12">
+            <div class="col-sm-12" style="overflow-x: scroll;">
                 <table id="grData" class="table table-bordered table-sm" style="width:auto" description="<?php echo $yAxisTitle; ?>" >                 
                     <thead>
                         <tr>
