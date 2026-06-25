@@ -15,7 +15,7 @@
                 <div class="card-body">
                     <div class="col-12"> 
                         <form action="" method="post" accept-charset="utf-8" id="frmFilter" name="frmFilter" role="form">                                                            
-                            <?php include_once($filtersPath); ?>
+                            <?php if (isset($filtersPath) && $filtersPath != "") include_once(APPPATH.'views/reports/'.$filtersPath); ?>
                             <input type="hidden" id="type" name="type" value="<?php echo $type; ?>">    
                         </form>
                     </div>

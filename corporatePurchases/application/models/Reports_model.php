@@ -329,6 +329,82 @@ class Reports_model extends CI_Model{
 		return $data;		
 	}  			
 
+	function getArticlesByOrder($parameters=NULL){
+
+		$data = array('list'=>NULL,
+		              'totalRecords'=>0);
+
+		$filter = "";
+		$limit = "";
+
+		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
+			$filter .= " AND DATE(orders.date) >= ".$this->company_db->escape($parameters['dateFromFilter']);
+		}
+		if (isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
+			$filter .= " AND DATE(orders.date) <= ".$this->company_db->escape($parameters['dateToFilter']);
+		}
+		if (isset($parameters['stateIdFilter']) && $parameters['stateIdFilter'] != "") {
+			$filter .= " AND orders.stateId = ".$this->company_db->escape($parameters['stateIdFilter']);
+		}
+		if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] > 0) {
+			$filter .= " AND branchOffices.companyId = ".(int)$parameters['companyIdFilter'];
+		}
+		if (isset($parameters['branchOfficeIdFilter']) && $parameters['branchOfficeIdFilter'] > 0) {
+			$filter .= " AND orders.branchOfficeId = ".(int)$parameters['branchOfficeIdFilter'];
+		}
+		if (isset($parameters['familyIdFilter']) && $parameters['familyIdFilter'] > 0) {
+			$filter .= " AND articles.familyId = ".(int)$parameters['familyIdFilter'];
+		}
+		if (isset($parameters['articleFilter']) && trim($parameters['articleFilter']) != "") {
+			$articleFilter = trim($parameters['articleFilter']);
+			$filter .= " AND (detailsByOrder.code LIKE ".$this->company_db->escape("%".$articleFilter."%")." OR ";
+			$filter .= "detailsByOrder.description LIKE ".$this->company_db->escape("%".$articleFilter."%").")";
+		}
+		if (isset($parameters['limit']) && $parameters['limit'] > 0) {
+			$limit = " LIMIT ".(int)$parameters['limit'];
+		}
+
+		$sql = "SELECT SQL_CALC_FOUND_ROWS ";
+		$sql .= "orders.id AS orderId, ";
+		$sql .= "orders.date AS orderDate, ";
+		$sql .= "orders.subject, ";
+		$sql .= "orders.stateId, ";
+		$sql .= "ordersStates.description AS stateDescription, ";
+		$sql .= "companies.id AS companyId, ";
+		$sql .= "companies.description AS companyDescription, ";
+		$sql .= "branchOffices.description AS branchOfficeDescription, ";
+		$sql .= "sectors.description AS sectorDescription, ";
+		$sql .= "detailsByOrder.id AS detailOrderId, ";
+		$sql .= "detailsByOrder.code AS articleCode, ";
+		$sql .= "detailsByOrder.description AS articleDescription, ";
+		$sql .= "IF(ISNULL(families.id),'',families.description) AS familyDescription, ";
+		$sql .= "detailsByOrder.quantity, ";
+		$sql .= "detailsByOrder.deliveredQuantity, ";
+		$sql .= "IFNULL(detailsByOrder.canceledQuantity,0) AS canceledQuantity, ";
+		$sql .= "detailsByOrder.unitPrice, ";
+		$sql .= "detailsByOrder.total ";
+		$sql .= "FROM ((((((orders INNER JOIN detailsByOrder ON orders.id = detailsByOrder.orderId) ";
+		$sql .= "INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id) ";
+		$sql .= "INNER JOIN companies ON branchOffices.companyId = companies.id) ";
+		$sql .= "LEFT JOIN sectors ON orders.sectorId = sectors.id) ";
+		$sql .= "LEFT JOIN ordersStates ON orders.stateId = ordersStates.id) ";
+		$sql .= "LEFT JOIN articles ON detailsByOrder.articleId = articles.id) ";
+		$sql .= "LEFT JOIN families ON articles.familyId = families.id ";
+		$sql .= "WHERE orders.deleted = 0 AND detailsByOrder.deleted = 0 ";
+		$sql .= $filter." ";
+		$sql .= "ORDER BY orders.date DESC, orders.id DESC, detailsByOrder.id ";
+		$sql .= $limit;
+
+		$query = $this->company_db->query($sql);
+		$queryTotal = $this->company_db->query("SELECT FOUND_ROWS() AS totalRecords");
+		if ($query->num_rows() > 0) {
+			$data = array('list'=>$query->result_array(),
+		                  'totalRecords'=>$queryTotal->row()->totalRecords);
+		}
+
+		return $data;
+	}
+
 	function getPartialDeliveries($parameters=NULL){
 
 		$data = array('list'=>NULL,

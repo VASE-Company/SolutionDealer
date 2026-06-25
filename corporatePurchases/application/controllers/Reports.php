@@ -31,9 +31,15 @@ class Reports extends CI_Controller {
 		$this->listing();						
 	}			
 
-	function _hasPermission() {
+	function _getType() {
 		$type = strtolower($this->input->get('type',TRUE));
 		if ($type == "")  $type = strtolower($this->input->post('type',TRUE));
+
+		return $type;
+	}
+
+	function _hasPermission() {
+		$type = $this->_getType();
 
 		switch ($type) {
 			case "stock":									
@@ -65,7 +71,7 @@ class Reports extends CI_Controller {
 		if (!$this->session->userdata('userLoggedIn') || !$this->_hasPermission()) {						
 			redirect('/main');			
 		} else {						
-			$type = strtolower($this->input->get('type',TRUE));
+			$type = $this->_getType();
 
 			switch ($type) {
 				case "stock":									
@@ -113,6 +119,16 @@ class Reports extends CI_Controller {
 					$contentData['filtersPath'] = "reports_general_filters_view.php";
 				break;
 
+				case "articlesbyorder":
+					$filters['company'] = true;
+					$filters['family'] = true;
+					$filters['state'] = true;
+
+					$title = "Reporte de Art. x Pedidos";
+					$contentData['callback'] = 'intializeArticlesByOrderReport()';
+					$contentData['filtersPath'] = "reports_articlesbyorder_filters_view.php";
+				break;
+
 				case "partialdeliveries":
 					$filters['company'] = true;
 					$filters['family'] = true;
@@ -124,7 +140,8 @@ class Reports extends CI_Controller {
 				break;
 
 				default:	
-					$hasPermission = false;					
+					redirect('/main');
+					return;
 				break;
 			}			
 
@@ -223,6 +240,9 @@ class Reports extends CI_Controller {
 		    	$filterExportGet .= "&".$values['getField']."=".$values['value'];	
 			}
 		}
+		if (isset($parameters['type'])) {
+			$parameters['type'] = strtolower($parameters['type']);
+		}
 
 		$parametersdData['parameters'] = $parameters;	
 		$parametersdData['filterExportGet'] = $filterExportGet;	
@@ -274,13 +294,25 @@ class Reports extends CI_Controller {
 			break;
 
 			case "articlesbyorder":
-				//$data = $this->_getDataGeneral($parameters);
+				$data = $this->_getDataArticlesByOrder($parameters);
 			break;
 
 			case "partialdeliveries":
 				$data = $this->_getDataPartialDeliveries($parameters);
 			break;
 		}
+
+		return $data;
+	}
+
+	function _getDataArticlesByOrder($parameters) {
+
+		if (!(isset($parameters['export']) && $parameters['export'] == true)) {
+			$parameters['limit'] = 50;
+		}
+
+		$articlesByOrder = $this->reports->getArticlesByOrder($parameters);
+		$data['data'] = $articlesByOrder['list'];
 
 		return $data;
 	}
@@ -361,6 +393,10 @@ class Reports extends CI_Controller {
 			case "general": 									
 				if ($parameters['subtypeFilter'] == 'PRO') $this->_exportProgressionGeneral($data);				
 				if ($parameters['subtypeFilter'] == 'TOT') $this->_exportTotalizedGeneral($data);								
+			break;
+
+			case "articlesbyorder":
+				$this->_exportArticlesByOrder($data);
 			break;
 
 			case "partialdeliveries":
@@ -812,6 +848,105 @@ class Reports extends CI_Controller {
 
 		@unlink($folder.$filename);				
 							
+		force_download($filename,$fileContent);
+	}
+
+	function _exportArticlesByOrder($data) {
+
+		$data = $data['data'];
+
+		$spreadsheet = new Spreadsheet();
+		$sheet = $spreadsheet->getActiveSheet();
+		$sheet->setTitle('Articulos x Pedidos');
+
+		$row = 1;
+		$sheet->setCellValue('A'.$row,"REPORTE DE ART. X PEDIDOS");
+		$styleCell = array('font'=>array('bold'=>true,'size'=>16));
+		$sheet->getStyle('A'.$row)->applyFromArray($styleCell);
+		$sheet->mergeCells('A'.$row.':'.'M'.$row);
+
+		$headers = array(
+			"Pedido",
+			"Fecha Pedido",
+			"Empresa",
+			"Sucursal",
+			"Sector",
+			"Estado",
+			"Rubro",
+			"Codigo",
+			"Articulo",
+			"Cantidad",
+			"Entregado",
+			"Cancelado",
+			"Total"
+		);
+
+		$row = 3;
+		for ($i=0; $i < count($headers); $i++) {
+			$sheet->setCellValue(getLetterOfExcelColumn($i+1).$row,$headers[$i]);
+		}
+
+		$styleCell = array(
+			'fill' => array(
+				'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+				'startColor' => array('argb' => '00000000')
+			),
+			'font' => array(
+				'bold'=>true,
+				'color' => array('argb' => 'FFFFFFFF')
+			)
+		);
+
+		$sheet->getStyle('A'.$row.":".getLetterOfExcelColumn(count($headers)).$row)->applyFromArray($styleCell);
+
+		if (isset($data)) {
+			for ($i=0; $i < count($data); $i++) {
+				$row++;
+				$col = 0;
+
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['orderId']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,dateFormat($data[$i]['orderDate'],false));
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['companyDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['branchOfficeDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['sectorDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['stateDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['familyDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['articleCode']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['articleDescription']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['quantity']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['deliveredQuantity']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['canceledQuantity']);
+				$col++;
+				$sheet->setCellValue(getLetterOfExcelColumn($col).$row,decimalFormat($data[$i]['total'],2));
+			}
+		}
+
+		for ($i=1; $i <= count($headers); $i++) {
+			$sheet->getColumnDimension(getLetterOfExcelColumn($i))->setAutoSize(true);
+		}
+
+        $writer = new Xlsx($spreadsheet);
+
+		$folder = $this->config->item('files').'/tmp/';
+		$filename = 'articulos_por_pedido_'.getCurrentDateId().'.xlsx';
+
+		$writer->save($folder.$filename);
+
+		$this->load->helper('download');
+		$fileContent = file_get_contents($folder.$filename);
+		@unlink($folder.$filename);
 		force_download($filename,$fileContent);
 	}
 

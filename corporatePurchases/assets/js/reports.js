@@ -124,6 +124,13 @@ function generateGraphicProgressionGeneralReport() {
 
 // --------------------------------------------------
 
+// ------------- ARTICLES BY ORDER REPORT -------------
+function intializeArticlesByOrderReport() {
+	selectCompanyReports();
+}
+
+// -----------------------------------------------------
+
 // ------------- PARTIAL DELIVERIES REPORT -------------
 function intializePartialDeliveriesReport() {
 	selectCompanyReports();

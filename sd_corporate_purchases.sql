@@ -127372,7 +127372,8 @@ INSERT INTO `permissions` (`id`, `module`, `action`, `description`, `active`, `d
 (153, 'Orders', 'ItemCancel', 'Cancelar cantidades de <strong>items</strong> sin entregar', 1, 0),
 (154, 'Orders', 'FullAccessInsurance', 'Acceder a todos los <strong>pedidos</strong> de Seguros únicamente', 1, 0),
 (155, 'Reports', 'General', 'Ver <strong>reporte general</strong>', 1, 0),
-(156, 'Reports', 'ArticlesByOrder', 'Ver <strong>reporte de artículos por pedido</strong>', 1, 0);
+(156, 'Reports', 'ArticlesByOrder', 'Ver <strong>reporte de artículos por pedido</strong>', 1, 0),
+(157, 'Reports', 'PartialDeliveries', 'Ver <strong>reporte de entregas parciales</strong>', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -127580,7 +127581,9 @@ INSERT INTO `permissionsbyrole` (`id`, `roleId`, `permissionId`) VALUES
 (1438, 8, 1),
 (1439, 8, 126),
 (1440, 8, 124),
-(1441, 8, 125);
+(1441, 8, 125),
+(1442, 8, 157),
+(1443, 8, 156);
 
 -- --------------------------------------------------------
 
@@ -168763,13 +168766,13 @@ ALTER TABLE `paymentsectorsbyorder`
 -- AUTO_INCREMENT de la tabla `permissions`
 --
 ALTER TABLE `permissions`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=157;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=158;
 
 --
 -- AUTO_INCREMENT de la tabla `permissionsbyrole`
 --
 ALTER TABLE `permissionsbyrole`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1442;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1444;
 
 --
 -- AUTO_INCREMENT de la tabla `purchasesorders`
@@ -169017,6 +169020,7 @@ ALTER TABLE `stocksbystockmovement`
 ALTER TABLE `users`
   ADD CONSTRAINT `fk_u_branchOfficeId` FOREIGN KEY (`branchOfficeId`) REFERENCES `branchoffices` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   ADD CONSTRAINT `fk_u_sectorId` FOREIGN KEY (`sectorId`) REFERENCES `sectors` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
