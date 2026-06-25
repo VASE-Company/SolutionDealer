@@ -277,20 +277,20 @@ class Reports_model extends CI_Model{
 		$sql .= "IF(ISNULL(purchasesOrders.id) OR purchasesOrders.id <= 0,'',CONCAT(purchasesOrders.id,'-',companies.id,'-',DATE_FORMAT(purchasesOrders.date,'%m%y'))) AS purchaseOrderNumber, ";
 		$sql .= "IFNULL(deliveryNotesSummary.deliveryNotes,'') AS deliveryNotes ";
 		// Se usan nombres reales de tablas en minuscula para que funcione tambien en servidores Linux.
-		$sql .= "FROM ((((((orders INNER JOIN detailsbyorder AS detailsByOrder ON orders.id = detailsByOrder.orderId) ";
-		$sql .= "INNER JOIN branchoffices AS branchOffices ON orders.branchOfficeId = branchOffices.id) ";
+		$sql .= "FROM ((((((orders INNER JOIN detailsByOrder ON orders.id = detailsByOrder.orderId) ";
+		$sql .= "INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id) ";
 		$sql .= "INNER JOIN companies ON branchOffices.companyId = companies.id) ";
-		$sql .= "LEFT JOIN ordersstates AS ordersStates ON orders.stateId = ordersStates.id) ";
+		$sql .= "LEFT JOIN ordersStates ON orders.stateId = ordersStates.id) ";
 		$sql .= "LEFT JOIN articles ON detailsByOrder.articleId = articles.id) ";
 		$sql .= "LEFT JOIN families ON articles.familyId = families.id) ";
-		$sql .= "LEFT JOIN purchasesorders AS purchasesOrders ON purchasesOrders.orderId = orders.id ";
+		$sql .= "LEFT JOIN purchasesOrders ON purchasesOrders.orderId = orders.id ";
 		$sql .= "LEFT JOIN ( ";
 		$sql .= "	SELECT detailsByDeliveryNotes.detailOrderId, ";
 		$sql .= "		   SUM(detailsByDeliveryNotes.quantity) AS deliveredQuantity, ";
 		$sql .= "		   GROUP_CONCAT(DISTINCT CONCAT(deliveryNotes.id,'-',branchOffices.companyId,'-',DATE_FORMAT(deliveryNotes.date,'%m%y')) ORDER BY deliveryNotes.id SEPARATOR ', ') AS deliveryNotes ";
-		$sql .= "	FROM (detailsbydeliverynotes AS detailsByDeliveryNotes INNER JOIN deliverynotes AS deliveryNotes ON detailsByDeliveryNotes.deliveryNoteId = deliveryNotes.id) ";
+		$sql .= "	FROM (detailsByDeliveryNotes INNER JOIN deliveryNotes ON detailsByDeliveryNotes.deliveryNoteId = deliveryNotes.id) ";
 		$sql .= "	INNER JOIN orders ON deliveryNotes.orderId = orders.id ";
-		$sql .= "	INNER JOIN branchoffices AS branchOffices ON orders.branchOfficeId = branchOffices.id ";
+		$sql .= "	INNER JOIN branchOffices ON orders.branchOfficeId = branchOffices.id ";
 		$sql .= "	WHERE detailsByDeliveryNotes.deleted = 0 AND deliveryNotes.deleted = 0 AND orders.deleted = 0 ";
 		$sql .= "	GROUP BY detailsByDeliveryNotes.detailOrderId ";
 		$sql .= ") AS deliveryNotesSummary ON deliveryNotesSummary.detailOrderId = detailsByOrder.id ";
@@ -298,7 +298,7 @@ class Reports_model extends CI_Model{
 		$sql .= "AND (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) > 0 ";
 		$sql .= $filter." ";
 		$sql .= "ORDER BY TRIM(families.description), TRIM(detailsByOrder.description), orders.maximumDate, orders.id ";
-		$sql .= $limit;
+		$sql .= $limit;		
 
 		$query = $this->company_db->query($sql);
 		if (!$query) {

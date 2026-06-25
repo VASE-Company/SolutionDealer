@@ -129,7 +129,7 @@ class Reports extends CI_Controller {
 															
 					$title = "Reporte de Estimación de Compras";			
 					$contentData['callback'] = 'intializeEstimatedPurchaseReport()';
-					$contentData['filtersPath'] = "reports_estimatedPurchase_filters_view.php";
+					$contentData['filtersPath'] = "reports_estimatedpurchase_filters_view.php";
 				break;			
 
 				case "partialdeliveries":
@@ -1041,12 +1041,12 @@ class Reports extends CI_Controller {
         if (isset($companies)) { 
             for ($i=0; $i < count($companies); $i++) {
            		$col++;      
-        		$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$companies[$i]['description']); 
+        		$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$companies[$i]['description']);         	
         		$sheet->mergeCells(getLetterOfExcelColumn($col).$row.':'.getLetterOfExcelColumn($col+2).$row);
         		$col += 2;
            	}
             if (count($companies) > 1) {
-            	$col++;
+            	$col++;            	
             	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"General");             	
             }
 		}
