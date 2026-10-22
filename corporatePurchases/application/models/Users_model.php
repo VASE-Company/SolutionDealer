@@ -190,6 +190,21 @@ class Users_model extends CI_Model{
 							$auxFilter .= " FALSE ";												
 						}
 						$auxFilter .= ")";
+
+						//GENERAL BRANCHOFFICE
+						$auxFilter .= " OR ";
+
+						$auxFilter .= "(";
+						$action = "AuthorizateBranchOffice";
+						$rolesIds = $this->_getRolesIdsWithPermission("Orders",$action);
+						if ($rolesIds != "") {
+							$auxFilter .= " EXISTS(SELECT id FROM rolesByUser WHERE rolesByUser.userId = users.id AND rolesByUser.roleId IN (".$rolesIds."))";												
+							$auxFilter .= " AND ";
+							$auxFilter .= "users.branchOfficeId = ".(float)$parameters['branchOfficeIdFilter'];							
+						} else {						
+							$auxFilter .= " FALSE ";												
+						}
+						$auxFilter .= ")";
 						
 						//COMPANY
 						$auxFilter .= " OR ";

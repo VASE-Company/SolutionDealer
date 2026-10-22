@@ -11,7 +11,7 @@ class Warehouses_model extends CI_Model{
 
    	function getWarehouses($parameters=NULL){				
 		$warehouses = array('list'=>NULL, 
-		                    'totalRecords'=>0);
+		                    'totalRecords'=>0);		
 		
 		$filter = "";
 		$order = "";
@@ -30,7 +30,7 @@ class Warehouses_model extends CI_Model{
 			}			
 			if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] > 0) {
 				$filter .= " AND (";
-				$filter .= "EXISTS(SELECT id FROM companies WHERE companies.id = ".$parameters['companyIdFilter']." AND companies.warehouseId = warehouses.id)";					
+				$filter .= "EXISTS(SELECT id FROM companies WHERE companies.id IN (".$parameters['companyIdFilter'].") AND companies.warehouseId = warehouses.id)";					
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {				
 					$filter .= " OR warehouses.id = ".$parameters['idFilter'];			
 			    }
@@ -80,15 +80,15 @@ class Warehouses_model extends CI_Model{
 		        FROM warehouses 
 				WHERE warehouses.deleted = 0 ".$filter." 
 				ORDER BY ".$order.
-				$limit;		
+				$limit;						
 			
 		$query = $this->company_db->query($sql);
 		$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
 		if ($query->num_rows() > 0){
 			$warehouses = array('list'=>$query->result_array(), 
-		                     'totalRecords'=>$queryTotal->row()->totalRecords);
-		}		
-		
+		                     	'totalRecords'=>$queryTotal->row()->totalRecords);
+		}			
+
 		return $warehouses;
 	}
 

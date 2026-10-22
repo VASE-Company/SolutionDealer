@@ -21,6 +21,7 @@ class Reports extends CI_Controller {
 		$this->load->model('warehouses_model','warehouses');	
 		$this->load->model('families_model','families');
 		$this->load->model('companies_model','companies');
+		$this->load->model('warehouses_model','warehouses');
 		$this->load->model('sectors_model','sectors');
 		$this->load->model('orders_model','orders');
 		$this->load->js('assets/js/reports.js');	
@@ -124,8 +125,18 @@ class Reports extends CI_Controller {
 					$filters['family'] = true;
 
 					$articleStates[0] = array('id'=>'ALL','description'=>'Todos');	
-					$articleStates[1] = array('id'=>'ACT','description'=>'Sólo Activos');											
+					$articleStates[1] = array('id'=>'ACT','description'=>'Sólo Activos','selected'=>true);											
 					$contentData['articleStates'] = $articleStates;
+
+					$articleUsual[0] = array('id'=>'ALL','description'=>'Todos');	
+					$articleUsual[1] = array('id'=>'USU','description'=>'Sí','selected'=>true);											
+					$articleUsual[2] = array('id'=>'NOT','description'=>'No');											
+					$contentData['articleUsual'] = $articleUsual;
+
+					$contentData['dateFromFilter'] = getCurrentDate(false,null,-6);
+					$contentData['dateToFilter'] = getCurrentDate(false);
+					$contentData['estimatedDays'] = 90;
+					$contentData['companyIdsFilter'] = "2|3|4|5|9";
 															
 					$title = "Reporte de Estimación de Compras";			
 					$contentData['callback'] = 'intializeEstimatedPurchaseReport()';
@@ -199,7 +210,7 @@ class Reports extends CI_Controller {
 		}
 	}	
 
-	function _getParameters() {	
+	function _getParameters($includeSelected=false) {	
 				
 		$data['type'] = array('getField'=>'type');
 		$data['dateFromFilter'] = array('getField'=>'df');	
@@ -210,7 +221,8 @@ class Reports extends CI_Controller {
 		$data['articleFilter'] = array('getField'=>'art');	
 		$data['haveStockFilter'] = array('getField'=>'hs');
 		$data['stockTypeIdFilter'] = array('getField'=>'st');	
-		$data['articleStateIdFilter'] = array('getField'=>'as');	
+		$data['articleStateIdFilter'] = array('getField'=>'as');
+		$data['articleUsualIdFilter'] = array('getField'=>'au');		
 		$data['companyIdFilter'] = array('getField'=>'com');	
 		$data['companyIdsFilterSelected'] = array('getField'=>'coms');	
 		$data['branchOfficeIdFilter'] = array('getField'=>'bo');	
@@ -222,6 +234,8 @@ class Reports extends CI_Controller {
 		$data['subtypeFilter'] = array('getField'=>'stype');	
 		$data['valueTypeIdFilter'] = array('getField'=>'vt');	
 		$data['estimatedDays'] = array('getField'=>'ed');	
+		$data['fieldOrder'] = array('getField'=>'fOrd','type'=>'order');
+		$data['typeOrder'] = array('getField'=>'tOrd','type'=>'order');
 
 		foreach ($data as $key => $values) {
 			if (!(isset($data[$key]['value']) && $data[$key]['value'] != "")) {
@@ -239,23 +253,47 @@ class Reports extends CI_Controller {
 		}
 
 		$parameters = NULL;
-		$filterExportGet = "";
+		$filterGet = "";
+		$orderGet = "";
 		$pageParameters = NULL;
-		
+
+
 		foreach ($data as $key => $values) {
 			$parameters[$key] = $values['value'];
 			if (isset($values['getField']) && $values['getField'] != "" &&				
-		        $values['value'] != NULL && $values['value'] != "") { 	
-		    	$filterExportGet .= "&".$values['getField']."=".$values['value'];	
-		    	$pageParameters[$values['getField']] = $values['value'];
+		        $values['value'] != NULL && $values['value'] != "") { 
+				
+				$type = (isset($values['type']) && $values['type'] != ""?$values['type']:"");
+				switch ($type) {
+					case 'order':
+						$orderGet .= "&".$values['getField']."=".$values['value'];	
+						break;
+					
+					default:
+						$filterGet .= "&".$values['getField']."=".$values['value'];	
+						break;
+				}				
+				$pageParameters[$values['getField']] = $values['value'];
 			}
 		}
+				
 		if (isset($parameters['type'])) {
 			$parameters['type'] = strtolower($parameters['type']);
 		}
 
+		if ($includeSelected) {						
+			$excludeIds  = $this->input->get_post('eIds');
+			$selectedIds = $this->input->get_post('sIds');
+			if (!empty($selectedIds)) {
+				$parameters['selectedFilter'] = $selectedIds;
+			} elseif (!empty($excludeIds)) { 
+				$parameters['notSelectedFilter'] = $excludeIds;
+			}			
+		}
+
 		$parametersdData['parameters'] = $parameters;	
-		$parametersdData['filterExportGet'] = $filterExportGet;	
+		$parametersdData['filterGet'] = $filterGet;
+		$parametersdData['orderGet'] = $orderGet;
 		$parametersdData['pageParameters'] = $pageParameters;	
 		
 		return $parametersdData;	
@@ -266,13 +304,14 @@ class Reports extends CI_Controller {
 
 		$parametersdData = $this->_getParameters();										
 		$parameters = $parametersdData['parameters'];
-		$parameters['page'] = $page;
+		$parameters['page'] = $page;		
 
-		if (isset($parameters['valueTypeIdFilter'])) {
-			$contentData['decimalValues'] = ($parameters['valueTypeIdFilter'] == "AMO");
-		}
-						
-		$contentData['filterExportGet'] = $parametersdData['filterExportGet'];			
+		if (isset($parameters['valueTypeIdFilter'])) $contentData['decimalValues'] = ($parameters['valueTypeIdFilter'] == "AMO");				
+		if (isset($parameters['fieldOrder'])) $contentData['fieldOrder'] = $parameters['fieldOrder'];				
+		if (isset($parameters['typeOrder'])) $contentData['typeOrder'] = $parameters['typeOrder'];		
+		
+		$contentData['filterGet'] = $parametersdData['filterGet'];				
+		$contentData['filterExportGet'] = $parametersdData['filterGet'].$parametersdData['orderGet'];			
 					
 		$contentData['data'] = $this->_getData($parameters);												
 
@@ -280,12 +319,13 @@ class Reports extends CI_Controller {
 		$contentData['allowSeeBudgets'] = $this->my_application->hasPermission("Budgets","See");																
 		$contentData['byAjax'] = true;	
 
-		if ($parameters["type"] == "partialdeliveries") {
+		if (isset($contentData['data']["paginated"]) && $contentData['data']["paginated"] == true) {
 			$pageConfiguration = getPageConfiguration(base_url().'reports/result',$this->config->item('recordsPerPage'),$contentData['data']["totalRecords"],$parametersdData['pageParameters']);
 			$pageConfiguration['first_url'] = base_url().'reports/result?'.http_build_query($parametersdData['pageParameters'], '', "&");
 			$this->pagination->initialize($pageConfiguration);
-			$contentData['data']["pagination"] = convertPageToAjax(applyPageStyles($this->pagination->create_links()),'reloadResultsPartialDeliveries');
+			$contentData['data']["pagination"] = convertPageToAjax(applyPageStyles($this->pagination->create_links()),'reloadResults');
 		}
+	
 
 		$viewName = "reports/reports_".$parameters["type"];
 		if (isset($parameters['subtypeFilter'])) {
@@ -380,16 +420,17 @@ class Reports extends CI_Controller {
 		$partialDeliveries = $this->reports->getPartialDeliveries($parameters);
 		$data['data'] = $partialDeliveries['list'];
 		$data['totalRecords'] = $partialDeliveries['totalRecords'];
+		$data['paginated'] = true;
 
 		return $data;
 	}
 
 	function export()
 	{							
-		if (!$this->session->userdata('userLoggedIn') || !$this->my_application->hasPermission("Reports","Export") || !$this->_hasPermission()) exit;											
-				
-		$parametersdData = $this->_getParameters();										
-		$parameters = $parametersdData['parameters'];
+		if (!$this->session->userdata('userLoggedIn') || !$this->my_application->hasPermission("Reports","Export") || !$this->_hasPermission()) exit;													
+
+		$parametersdData = $this->_getParameters(true);										
+		$parameters = $parametersdData['parameters'];		
 		$parameters['export'] = true;
 		$data = $this->_getData($parameters);
 
@@ -404,7 +445,9 @@ class Reports extends CI_Controller {
 			break;
 
 			case "estimatedpurchase": 					
-				$this->_exportEstimatedPurchase($data);
+				$parametersDescription = $this->_getParametersDescription($parameters);
+				
+				$this->_exportEstimatedPurchase($data, $parametersDescription);
 			break;
 
 			case "partialdeliveries":
@@ -977,12 +1020,13 @@ class Reports extends CI_Controller {
 	}
 
 	function _getDataEstimatedPurchase($parameters) {
-		
-		if (!(isset($parameters['export']) && $parameters['export'] == true)) {
-			$parameters['limit'] = 50;				
-		}		
+				
 		if (isset($parameters['articleStateIdFilter']) && trim($parameters['articleStateIdFilter']) == "ACT") {
 			$parameters['articleActiveFilter'] = "1";
+		}
+		if (isset($parameters['articleUsualIdFilter']) && trim($parameters['articleUsualIdFilter']) != "ALL") {
+			if (trim($parameters['articleUsualIdFilter']) == "USU") $parameters['articleUsualFilter'] = "1";			
+			if (trim($parameters['articleUsualIdFilter']) == "NOT") $parameters['articleUsualFilter'] = "0";			
 		}
 		if (isset($parameters['companyIdsFilterSelected'])) {
 			$parameters['companyIdsFilter'] = $parameters['companyIdsFilterSelected'];			
@@ -992,24 +1036,26 @@ class Reports extends CI_Controller {
 		}		
 		if (isset($parameters['estimatedDays'])) {
 			$parameters['estimatedDays'] = (int)$parameters['estimatedDays'];			
-		}				
+		}						
 		$auxData = $this->reports->getEstimatedPurchase($parameters);
 		$data['data'] = $auxData['list'];	
+		$data['totalRecords'] = $auxData['totalRecords'];
+		$data['paginated'] = true;		
 
-		$companiesParameters = null;
+		$warehousesParameters['activeFilter'] = 1;		
 		if (isset($parameters['companyIdsFilterSelected'])) {
-			$companiesParameters['idsFilter'] = $parameters['companyIdsFilterSelected'];			
+			$warehousesParameters['companyIdFilter'] = str_replace("|",",",$parameters['companyIdsFilterSelected']);			
 		}
-		$companies = $this->companies->getCompanies($companiesParameters);
-		$data['companies'] = $companies["list"];							
+		$warehouses = $this->warehouses->getWarehouses($warehousesParameters);
+		$data['warehouses'] = $warehouses["list"];							
 
 		return $data;
 	}
-
-	function _exportEstimatedPurchase($data) {
+	
+	function _exportEstimatedPurchase($data, $parametersDescription=NULL) {
 
     	$companies = $data['companies'];
-    	$data = $data['data'];	
+    	$data = $data['data'];	    	
 
 		// INITIALITE SPREADSHEET
 				
@@ -1027,46 +1073,28 @@ class Reports extends CI_Controller {
         $styleCell = array('font'=>array('bold'=>true,'size'=>16));
         $sheet->getStyle('A'.$row)->applyFromArray($styleCell);
         $sheet->mergeCells('A'.$row.':'.'H'.$row);
+
+        // PARAMETERS        
+        $styleCell = array('font'=>array('bold'=>true));
+
+        $row++;
+    	$sheet->setCellValue('A'.$row,"Fecha Reporte:"); 
+    	$sheet->setCellValue('B'.$row,getCurrentDateSpanish(false));
+    	$sheet->getStyle('A'.$row)->applyFromArray($styleCell);
+    	$sheet->mergeCells('B'.$row.':'.'E'.$row);
+
+        for ($i=0; $i < count($parametersDescription); $i++) {
+        	$row++;
+        	$sheet->setCellValue('A'.$row,$parametersDescription[$i]['label']); 
+        	$sheet->setCellValue('B'.$row,$parametersDescription[$i]['data']);
+        	$sheet->getStyle('A'.$row)->applyFromArray($styleCell);
+        	$sheet->mergeCells('B'.$row.':'.'E'.$row);
+        }
         
         // GRID HEADERS        
         $row++;
         $col = 0; 
-
-
-        $row++;    
-        $col++;      
-        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Artículo"); 
-        $sheet->mergeCells(getLetterOfExcelColumn($col).$row.':'.getLetterOfExcelColumn($col+2).$row);
-        $col += 2;
-        if (isset($companies)) { 
-            for ($i=0; $i < count($companies); $i++) {
-           		$col++;      
-        		$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$companies[$i]['description']);         	
-        		$sheet->mergeCells(getLetterOfExcelColumn($col).$row.':'.getLetterOfExcelColumn($col+2).$row);
-        		$col += 2;
-           	}
-            if (count($companies) > 1) {
-            	$col++;            	
-            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"General");             	
-            }
-		}
-		$styleCell = array(
-				            'fill' => array(
-				                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-				                'startColor' => array('argb' => '00000000')
-				            	),
-				            'font' => array(
-				            	'bold'=>true,
-				            	'color' => array('argb' => 'FFFFFFFF')
-				            	),
-				            'alignment' => array(
-							        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-							        'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
-							    )
-					        );
-
-		$sheet->getStyle('A'.$row.":".getLetterOfExcelColumn($col).$row)->applyFromArray($styleCell);		
-
+        
         $col = 0;
         $row++;
         $col++;
@@ -1074,21 +1102,7 @@ class Reports extends CI_Controller {
         $col++;
         $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Descripción"); 
         $col++;
-        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Rubro");   
-        if (isset($companies)) { 
-            for ($i=0; $i < count($companies); $i++) {
-           		$col++;
-            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Stock");             	
-            	$col++;
-            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Estimado");             	
-            	$col++;
-            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Comprar");             	
-           	}
-            if (count($companies) > 1) {            	
-            	$col++;
-            	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Total Comprar");             	
-            }
-		}
+        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Total a Comprar");          
                                      		         
 		$styleCell = array(
 				            'fill' => array(
@@ -1118,35 +1132,7 @@ class Reports extends CI_Controller {
 		        $col++;
 		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['description']); 
 		        $col++;
-		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['familyDescription']); 
-		        if (isset($companies)) { 
-                    for($j=0; $j < count($companies); $j++) {                                                                                            
-                        if (isset($data[$i]['companies'][$companies[$j]['id']])) {
-                            $stock = $data[$i]['companies'][$companies[$j]['id']]['stock'];
-                            $estimatedQuantity = $data[$i]['companies'][$companies[$j]['id']]['estimatedQuantity'];
-                            $quantityToBuy = $data[$i]['companies'][$companies[$j]['id']]['quantityToBuy'];
-                        } else {
-                            $stock = 0;
-                            $estimatedQuantity = 0;
-                            $quantityToBuy = 0;
-                        }  
-                        $col++;
-				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$stock); 
-				        $col++;
-				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$estimatedQuantity); 
-				        $col++;
-				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$quantityToBuy); 
-                    }
-                    if (count($companies) > 1) {
-                        if (isset($data[$i]['companies'][0])) {                            
-                            $quantityToBuy = $data[$i]['companies'][0]['quantityToBuy'];
-                        } else {                            
-                            $quantityToBuy = 0;
-                        }                        
-				        $col++;
-				        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$quantityToBuy); 
-                    }
-                }
+		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['quantityToBuy']); 		        
 			}
 		}
 
@@ -1172,6 +1158,50 @@ class Reports extends CI_Controller {
 							
 		force_download($filename,$fileContent);
 	}
+
+	function _getParametersDescription($parameters=null) {
+		
+		$parametersDescription = array();			
+		/*
+		$period = "";
+		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {				
+			if ($period != "") $period .= " ";
+			$period .= "desde el ".dateFormat($parameters['dateFromFilter']);											
+		}
+		if (isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {				
+			if ($period != "") $period .= " ";
+			$period .= "hasta el ".dateFormat($parameters['dateToFilter']);				
+		}	
+		if ($period != "") $parametersDescription[count($parametersDescription)] = array('label'=>'Periodo:','data'=>$period);				
+		if (isset($parameters['inputFilter']) && $parameters['inputFilter'] != "") {	
+			$parametersDescription[count($parametersDescription)] = array('label'=>'Tipo:','data'=>((int)$parameters['inputFilter'] == 1?"Entrada":"Salida"));					
+		}
+		if (isset($parameters['typeIdFilter']) && $parameters['typeIdFilter'] != "") {				
+			$typesParameters['idFilter'] = $parameters['typeIdFilter'];				
+			$movementsTypes = $this->movementsTypes->getMovementsTypes($typesParameters);
+			if ($movementsTypes["totalRecords"] == 1) {
+				$movementsType = $movementsTypes["list"][0];
+				$parametersDescription[count($parametersDescription)] = array('label'=>'Concepto:','data'=>$movementsType['description']);						
+			}
+		}	
+		if (isset($parameters['warehouseIdFilter']) && $parameters['warehouseIdFilter'] != "") {				
+			$warehousesParameters['idFilter'] = $parameters['warehouseIdFilter'];				
+			$warehouses = $this->warehouses->getWarehouses($warehousesParameters);
+			if ($warehouses["totalRecords"] == 1) {
+				$warehouse = $warehouses["list"][0];
+				$parametersDescription[count($parametersDescription)] = array('label'=>'Depósito:','data'=>$warehouse['description']);						
+			}
+		}	
+		if (isset($parameters['articleFilter']) && $parameters['articleFilter'] != "") {	
+			$parametersDescription[count($parametersDescription)] = array('label'=>'Cod. Artículo:','data'=>$parameters['articleFilter']);					
+		}																								
+		if (isset($parameters['observationFilter']) && $parameters['observationFilter'] != "") {	
+			$parametersDescription[count($parametersDescription)] = array('label'=>'Observación:','data'=>$parameters['observationFilter']);					
+		}																								
+		*/
+		return $parametersDescription;
+	}
+
 }
 
 /* End of file Reports.php */

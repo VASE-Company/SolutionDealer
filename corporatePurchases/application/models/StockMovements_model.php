@@ -365,7 +365,7 @@ class StockMovements_model extends CI_Model{
 			$date = getCurrentDate();
 			for ($i=0; $i < count($details); $i++) {
 				$this->company_db->set('date',$date);	        
-				$this->company_db->set('userId',$this->session->userdata('userId'));	 													
+				$this->company_db->set('userId',(isset($data['userId']) && $data['userId'] > 0?$data['userId']:$this->session->userdata('userId')));	 													
 				$this->company_db->set('typeId',$data['typeId']);			
 				$this->company_db->set('input',$input);			
 				$this->company_db->set('companyId',$data['companyId']);
@@ -414,7 +414,9 @@ class StockMovements_model extends CI_Model{
 
 				$error = $this->company_db->error();
 				if ((int)$error['code'] != 0) {							
-					$saveOK = false;													
+					$saveOK = false;																	
+					print_r($error);
+					exit;
 				}									
 			}
 

@@ -1,12 +1,16 @@
 function loadResultsReports() {	
-	if (!validateDataReports()) return;
+	if (!validateDataReports()) return;	
 
 	$('#data').html("");		
 
-	loadDataByAjax($('#baseUrl').val()+'reports/result','data',null,'frmFilter',null,'fadeIn');			
+	if ($('#type').val() == 'estimatedpurchase') {
+		estPurchaseSel.reset();
+	}
+
+	loadDataByAjax($('#baseUrl').val()+'reports/result','data',getCallbackReports(),'frmFilter',null,'fadeIn');			
 }
 
-function clearFilterReports() {
+function clearFilterReports() { 
 	clearFilter('frmFilter',false);
 
 	if ($('#dateFromFilter') != null) $('#dateFromFilter').val($('#dateFromFilter').attr('original'));
@@ -20,7 +24,13 @@ function clearFilterReports() {
 		$('#familyIdsFilter').multiselect('selectAll', false);
 		$('#familyIdsFilter').multiselect('updateButtonText');
 		$('#familyIdsFilterSelected').val('all');		
+	} 
+
+	/*
+	if ($('#type').val() == 'estimatedpurchase') {
+		estPurchaseSel.reset();
 	}
+	*/
 }
 
 function validateDataReports() {
@@ -100,6 +110,20 @@ function selectBranchOfficeReports() {
 	}
 }
 
+function getCallbackReports() {
+	switch ($('#type').val()) {
+		case 'estimatedpurchase':
+			callback = 'estPurchaseSel.apply();';
+		break;
+
+		default:
+			callback = null;
+		break;
+	}
+
+	return callback;
+}
+
 // ----------------- STOCK REPORT -----------------
 function intializeStockReport() {
 	selectTypeStockReport();	
@@ -142,6 +166,14 @@ function selectTypeStockReport() {
 	$('#dateToFilter').val('');	
 }
 
+function reloadResults(url) {
+	if (url == null) url = "";
+
+	if (url != "") {	
+		loadDataByAjax(url,'data',getCallbackReports(),null,null,'fadeIn');
+	}
+}
+
 // ------------------------------------------------
 
 // ----------------- GENERAL REPORT -----------------
@@ -163,19 +195,73 @@ function intializeEstimatedPurchaseReport() {
 	inicializeComboFilter('companyIdsFilter');
 	inicializeComboFilter('familyIdsFilter');
 }
+
+window.estPurchaseSel = (function () {
+    var mode = 'all';          // 'all' = todos salvo excepciones | 'none' = solo los tildados
+    var ids = new Set();       // en 'all': excluidos / en 'none': incluidos
+
+    function rows() { return document.querySelectorAll('#grData .chkRow'); }
+
+    function isChecked(id) { return mode === 'all' ? !ids.has(id) : ids.has(id); }
+
+    function setState(id, checked) {
+        // En 'all' guardamos al destildado; en 'none' guardamos al tildado
+        if (mode === 'all') { checked ? ids.delete(id) : ids.add(id); }
+        else                { checked ? ids.add(id)    : ids.delete(id); }
+    }
+
+    function total() {
+        var g = document.getElementById('grData');
+        return g ? parseInt(g.getAttribute('data-total'), 10) || 0 : 0;
+    }
+
+    function refreshHeader() {
+        var all = rows(), checked = 0;
+        all.forEach(function (c) { if (c.checked) checked++; });
+        var master = document.getElementById('chkAllRows');
+        if (master) {
+            master.checked = all.length > 0 && checked === all.length;
+            master.indeterminate = checked > 0 && checked < all.length;
+        }
+        var counter = document.getElementById('selectedCount');
+        if (counter) counter.textContent = (mode === 'all') ? Math.max(total() - ids.size, 0) : ids.size;
+    }
+
+    return {
+        toggle: function (cb) { setState(cb.value, cb.checked); refreshHeader(); },
+        toggleAll: function (master) {            // solo las filas de la página visible
+            rows().forEach(function (c) { c.checked = master.checked; setState(c.value, master.checked); });
+            refreshHeader();
+        },
+        selectAll:  function () { mode = 'all';  ids.clear(); this.apply(); },   // todo el resultado
+        selectNone: function () { mode = 'none'; ids.clear(); this.apply(); },
+        reset:      function () { this.selectAll(); },       // llamar al aplicar nuevos filtros
+        apply: function () {                                  // llamar cada vez que carga la grilla
+            rows().forEach(function (c) { c.checked = isChecked(c.value); });
+            refreshHeader();
+        },
+        // Devuelve el string a agregar a la URL/POST de exportación, o null si no hay nada seleccionado
+        exportParams: function () {
+            var list = Array.from(ids);
+            if (mode === 'all') {
+                return list.length ? '&eIds=' + encodeURIComponent(list.join('|')) : '';
+            }
+            return list.length ? '&sIds=' + encodeURIComponent(list.join('|')) : null;
+        }
+    };
+})();
+
+function estPurchaseExport(url, filter) {
+    var p = estPurchaseSel.exportParams();
+    if (p === null) { alert('No hay artículos seleccionados.'); return; }
+
+    generalExport(url, filter + p);
+}
 // --------------------------------------------------
 
 // ------------- PARTIAL DELIVERIES REPORT -------------
 function intializePartialDeliveriesReport() {
 	selectCompanyReports();
-}
-
-function reloadResultsPartialDeliveries(url) {
-	if (url == null) url = "";
-
-	if (url != "") {
-		loadDataByAjax(url,'data',null,null,null,'fadeIn');
-	}
 }
 
 // -----------------------------------------------------

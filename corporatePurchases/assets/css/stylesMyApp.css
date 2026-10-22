@@ -177,3 +177,27 @@ p {
     max-width: 100%;
     overflow-x: hidden;
 }
+
+.table-border-strong {
+  border-color: #495057 !important;
+}
+
+.table-border-strong-right {
+  border-right-color: #495057 !important;
+}
+
+.table-border-strong-bottom {
+  border-bottom-color: #495057 !important;
+}
+
+.table-border-medium-left {
+  border-left-color: #bdc1c5 !important;
+}
+
+.bg-light-strong {
+  background-color: #b0b3b5;
+}
+
+.text-red {
+  color: red !important;
+}

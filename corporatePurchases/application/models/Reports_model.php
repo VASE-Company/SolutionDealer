@@ -13,7 +13,7 @@ class Reports_model extends CI_Model{
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
 		
-		$filterArticles = "";
+		$filterArticles = ""; 
 		$filterMovements = "";		
 		//HABILITAR USA STOCK
 		$filterStock = " WHERE families.affectsStock = 1";			
@@ -479,34 +479,17 @@ class Reports_model extends CI_Model{
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
 				
-		$limit = 0;	 
+		$limit = "";	 
+		$order = "";
 		$filterArticles = "";
-		$filterMovements = "";						
-		$filterWarehouses = "";			
+		$filterMovements = "";										
 		
 		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
 			$filterMovements .= " AND o.date >= '".$parameters['dateFromFilter']." 00:00:00' ";
 		}
 		if (isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
 			$filterMovements .= " AND o.date <= '".$parameters['dateToFilter']." 23:59:59' ";
-		}	
-		if (isset($parameters['companyIdsFilter']) && $parameters['companyIdsFilter'] != '' && $parameters['companyIdsFilter'] != 'all') {				
-			$filterMovements .= " AND b.companyId IN(".str_replace("|",",",$parameters['companyIdsFilter']).")";	
-
-			$sqlWarehouses = "SELECT DISTINCT warehouseId  
-			        			FROM companies   
-								WHERE deleted = 0 AND id IN(".str_replace("|",",",$parameters['companyIdsFilter']).")";																
-			$queryWarehouses = $this->company_db->query($sqlWarehouses);			
-			if ($queryWarehouses->num_rows() > 0) {
-				$lstWarehouses = $queryWarehouses->result_array();
-				for ($i=0; $i < count($lstWarehouses); $i++)
-				{
-					if ($filterWarehouses != "") $filterWarehouses .= ',';				
-					$filterWarehouses .= $lstWarehouses[$i]["warehouseId"];						
-				}				
-				$filterWarehouses = " AND [TABLE].warehouseId IN (".$filterWarehouses.") ";
-			}									
-		}
+		}			
 		if (isset($parameters['articleFilter']) && $parameters['articleFilter'] != "") {
 			$sqlArticles = "SELECT id 
 		        			FROM articles  
@@ -518,264 +501,202 @@ class Reports_model extends CI_Model{
 				$articleId = $row['id'];					
 			} else {
 				$articleId = -1;
-			}						
-			$filterMovements .= " AND d.articleId = ".$articleId;				
+			}									
+			$filterArticles .= " AND a.id = ".$articleId;				
 		}		
 		if (isset($parameters['articleActiveFilter']) && $parameters['articleActiveFilter'] != '') {
 			$filterArticles .= " AND a.active = ".$parameters['articleActiveFilter'];				
-		}		
+		}	
+		if (isset($parameters['articleUsualFilter']) && $parameters['articleUsualFilter'] != '') {
+			$filterArticles .= " AND a.usual = ".$parameters['articleUsualFilter'];				
+		}			
 		if (isset($parameters['familyIdsFilter']) && $parameters['familyIdsFilter'] != '' && $parameters['familyIdsFilter'] != 'all') {				
 			$filterArticles .= " AND a.familyId IN(".str_replace("|",",",$parameters['familyIdsFilter']).")";	
+		}		
+		if (isset($parameters['selectedFilter']) && $parameters['selectedFilter'] != '') {				
+			$filterArticles .= " AND a.id IN(".str_replace("|",",",$parameters['selectedFilter']).")";	
 		}
-		if (isset($parameters['limit']) && (int)$parameters['limit'] > 0) {			
-			$limit = (int)$parameters['limit'];
-		}							
+		if (isset($parameters['notSelectedFilter']) && $parameters['notSelectedFilter'] != '') {				
+			$filterArticles .= " AND NOT a.id IN(".str_replace("|",",",$parameters['notSelectedFilter']).")";	
+		}
+		if (isset($parameters['page']) && $parameters['page'] > 0) {
+			$fromRecord = ($parameters['page'] == 1?0:(($parameters['page']-1)*$this->config->item('recordsPerPage')));		
+			$limit = "LIMIT ".$fromRecord.",".$this->config->item('recordsPerPage');
+		}
+		if (isset($parameters['fieldOrder']) && $parameters['fieldOrder'] != '') {			
+			$auxOrder = "";
+			if (isset($parameters['typeOrder']) && $parameters['typeOrder'] != '') {						
+				switch ($parameters['typeOrder']) {
+					case 'asc':
+						$auxOrder = "ASC ";
+					break;
+					case 'desc':
+						$auxOrder = "DESC ";
+					break;
+				}
+			}
+			
+			switch ($parameters['fieldOrder']) {
+				case 'buy':
+					$order .= "quantityToBuy ".$auxOrder.", familyDescription, description ";
+				break;	
+				case 'des':
+					$order .= "description ".$auxOrder.", familyDescription, quantityToBuy DESC ";
+				break;
+				case 'fam':
+					$order .= "familyDescription ".$auxOrder.", description, quantityToBuy DESC ";
+				break;					
+			}														
+		}
+		if ($order == "") {
+			$order .= "quantityToBuy DESC, familyDescription, description ";			
+		}
 
-		if ($limit <= 0) {
-			$sql = "SELECT a.id,
-					       a.code,
-					       a.description,
-					       f.description AS familyDescription,
-					       c.id          AS companyId,					       
-					       summary.periodQuantity,
-					       summaryStock.stock
-					FROM (
-					    SELECT d.articleId,
-					           b.companyId,
-					           SUM(d.quantity - d.canceledQuantity) AS periodQuantity
-					    FROM detailsByOrder d
-					    INNER JOIN orders        o ON d.orderId = o.id
-					    INNER JOIN branchOffices b ON o.branchOfficeId = b.id
-					    WHERE d.deleted = 0
-					      AND o.deleted = 0
-					      AND b.deleted = 0
-					      AND d.affectsStock = 1
-					      AND d.articleId > 0				      
-					      AND o.stateId NOT IN ('ARM','TOAUT','NOTAUT','CAN','SUS') 
-					      ".$filterMovements." 
-					    GROUP BY d.articleId, b.companyId
-					    HAVING SUM(d.quantity - d.canceledQuantity) > 0
-					) AS summary
-					INNER JOIN companies c ON summary.companyId = c.id
-					LEFT JOIN (
-					    SELECT articleId, warehouseId, SUM(auxQuantity) AS stock
-					    FROM (
-					        SELECT articleId, warehouseId, quantity * IF(input = 1, 1, -1) AS auxQuantity
-					        FROM stockMovements
-					        WHERE deleted = 0 
-					          ".str_replace("[TABLE].","",$filterWarehouses)."
-
-					        UNION ALL
-					        SELECT articleId, warehouseId, quantity * -1 AS auxQuantity
-					        FROM detailsByDeliveryNotes
-					        WHERE deleted = 0 
-					          ".str_replace("[TABLE].","",$filterWarehouses)."
-
-					        UNION ALL
-					        SELECT db.articleId, bi.warehouseId, db.quantity AS auxQuantity
-					        FROM detailsByBill db
-					        INNER JOIN bills bi ON db.billId = bi.id
-					        WHERE bi.deleted = 0
-					          AND db.deleted = 0 
-					          ".str_replace("[TABLE].","bi.",$filterWarehouses)."
-
-					        UNION ALL
-					        SELECT d.articleId,
-					               o.warehouseId,
-					               -1 * (d.quantity - d.canceledQuantity - d.deliveredQuantity) AS auxQuantity
-					        FROM detailsByOrder d
-					        INNER JOIN orders o ON d.orderId = o.id
-					        WHERE o.deleted = 0
-					          AND d.deleted = 0
-					          AND d.affectsStock = 1
-					          AND d.articleId > 0
-					          ".str_replace("[TABLE].","o.",$filterWarehouses)."
-					          AND o.stateId NOT IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT')
-					    ) AS auxStock
-					    GROUP BY articleId, warehouseId
-					) AS summaryStock
-					   ON summary.articleId = summaryStock.articleId
-					  AND c.warehouseId = summaryStock.warehouseId
-					INNER JOIN articles a ON summary.articleId = a.id
-					LEFT  JOIN families f ON a.familyId = f.id
-					WHERE a.deleted = 0 
-					  ".$filterArticles." 
-					ORDER BY TRIM(f.description), f.id, TRIM(a.description), a.id;";
+		$estimatedDays = (isset($parameters['estimatedDays']) && (int)$parameters['estimatedDays'] > 0?(int)$parameters['estimatedDays']:0);
+		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "" && isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
+			$periodDays = (int)getDifferenceOfDaysBetweenDates($parameters['dateFromFilter'],$parameters['dateToFilter']);
+			if ($periodDays < 1) $periodDays = 1;
 		} else {
-			$filterIdsArticles = "";
-			$sql = "SELECT a.id AS articleId
+			$periodDays = 1;
+		}			
+		
+		$warehouseIds = ""; 
+		$sqlWarehouses = "SELECT DISTINCT w.id FROM warehouses w WHERE w.deleted = 0 AND w.active = 1 ";	
+		if (isset($parameters) && isset($parameters['companyIdsFilter']) && $parameters['companyIdsFilter'] != '' && $parameters['companyIdsFilter'] != 'all') {				
+			$sqlWarehouses .= " AND w.id IN (SELECT c.warehouseId FROM companies c WHERE c.id IN(".str_replace("|",",",$parameters['companyIdsFilter'])."))";							
+		}
+		$queryWarehouses = $this->company_db->query($sqlWarehouses);			
+		if ($queryWarehouses->num_rows() > 0) {
+			$lstWarehouses = $queryWarehouses->result_array();
+			
+			$estimatedExpr = "";
+			$stockPivot = "";
+			$baseEstimated = "";
+			$baseStock = "";
+			$baseStock = "";
+			$calcEstimated = "";
+			$calcStock = "";
+			$calcToBuy = "";
+			$calcTotal = "0";
+	    
+			for ($i=0; $i < count($lstWarehouses); $i++) {											
+				$wId = $lstWarehouses[$i]["id"];
+				
+				if ($warehouseIds != "") $warehouseIds .= ",";
+				$warehouseIds .= $wId;
+				
+				$estimatedExpr 	.= ", CEIL((SUM(IF(o.warehouseId = ".$wId.", d.quantity - d.canceledQuantity, 0)) / ".$periodDays.") * ".$estimatedDays.") AS estimatedQuantity".$wId;	
+				$stockPivot    	.= ", SUM(IF(warehouseId = ".$wId.", qty, 0)) AS stock".$wId;
+	    		$baseEstimated 	.= ", COALESCE(s.estimatedQuantity".$wId.", 0) AS estimatedQuantity".$wId;
+	    		$baseStock     	.= ", COALESCE(ss.stock".$wId.", 0) AS stock".$wId;
+	    		$calcEstimated 	.= ", estimatedQuantity".$wId;
+	    		$calcStock     	.= ", stock".$wId;
+	    		$calcToBuy     	.= ", (estimatedQuantity".$wId." - stock".$wId.") AS quantityToBuy".$wId;
+	    		$calcTotal     	.= "+ GREATEST(estimatedQuantity".$wId." - stock".$wId.", 0)";				
+			}									
+		}					
+
+		$sql = "SELECT SQL_CALC_FOUND_ROWS * 
+				FROM (
+					SELECT id, code, description, familyDescription 
+							".$calcEstimated.$calcStock.$calcToBuy.", (".$calcTotal.") AS quantityToBuy 
 					FROM (
-					    SELECT d.articleId,
-					           SUM(d.quantity - d.canceledQuantity) AS periodQuantity
-					    FROM detailsByOrder d
-					    INNER JOIN orders        o ON d.orderId = o.id
-					    INNER JOIN branchOffices b ON o.branchOfficeId = b.id
-					    WHERE d.deleted = 0
-					      AND o.deleted = 0
-					      AND b.deleted = 0
-					      AND d.affectsStock = 1
-					      AND d.articleId > 0				      
-					      AND o.stateId NOT IN ('ARM','TOAUT','NOTAUT','CAN','SUS') 
-					      ".$filterMovements." 
-					    GROUP BY d.articleId
-					    HAVING SUM(d.quantity - d.canceledQuantity) > 0
-					) AS sa
-					INNER JOIN articles a ON a.id = sa.articleId
-					LEFT  JOIN families f ON a.familyId = f.id
-					WHERE a.deleted = 0 
-					  ".$filterArticles." 
-					ORDER BY TRIM(f.description), f.id, TRIM(a.description), a.id
-					LIMIT ".$limit;
-			$queryArticles = $this->company_db->query($sql);			
-			if ($queryArticles->num_rows() > 0) {
-				$lstArticles = $queryArticles->result_array();
-				for ($i=0; $i < count($lstArticles); $i++)
-				{
-					if ($filterIdsArticles != "") $filterIdsArticles .= ',';				
-					$filterIdsArticles .= $lstArticles[$i]['articleId'];						
-				}				
-			}
+						SELECT a.id, a.code, TRIM(a.description) AS description, TRIM(f.description) AS familyDescription  
+								".$baseEstimated.$baseStock." 
+						FROM articles a 
+						LEFT JOIN families f ON f.id = a.familyId 
 
-			if ($filterIdsArticles != "") {
-				$sql = "SELECT a.id,
-						       a.code,
-						       a.description,
-						       f.description AS familyDescription,
-						       c.id          AS companyId,						       
-						       summary.periodQuantity,
-						       summaryStock.stock
-						FROM (
-						    SELECT d.articleId,
-						           b.companyId,
-						           SUM(d.quantity - d.canceledQuantity) AS periodQuantity
-						    FROM detailsByOrder d
-						    INNER JOIN orders        o ON d.orderId = o.id
-						    INNER JOIN branchOffices b ON o.branchOfficeId = b.id
-						    WHERE d.deleted = 0
-						      AND o.deleted = 0
-						      AND b.deleted = 0
-						      AND d.affectsStock = 1
-						      AND d.articleId > 0
-						      AND d.articleId IN (".$filterIdsArticles.")						      
-						      AND o.stateId NOT IN ('ARM','TOAUT','NOTAUT','CAN','SUS')
-						      ".$filterMovements." 
-						    GROUP BY d.articleId, b.companyId
-						    HAVING SUM(d.quantity - d.canceledQuantity) > 0
-						) AS summary
-						INNER JOIN companies c ON summary.companyId = c.id
+						/* summary */
 						LEFT JOIN (
-						    SELECT articleId, warehouseId, SUM(auxQuantity) AS stock
-						    FROM (
-						        SELECT articleId, warehouseId, quantity * IF(input = 1, 1, -1) AS auxQuantity
-						        FROM stockMovements
-						        WHERE deleted = 0
-						          AND articleId  IN (".$filterIdsArticles.")
-						          ".str_replace("[TABLE].","",$filterWarehouses)."
+							SELECT d.articleId ".$estimatedExpr."  
+							FROM detailsByOrder d 
+							INNER JOIN orders o ON d.orderId = o.id 
+							INNER JOIN articles a ON a.id = d.articleId 						
+							WHERE 	d.deleted = 0 AND o.deleted = 0 AND a.deleted = 0 
+								AND d.affectsStock = 1 
+								AND d.articleId > 0 
+								AND o.warehouseId IN (".$warehouseIds.") 
+								AND o.stateId NOT IN ('ARM','TOAUT','NOTAUT','CAN','SUS') 
+								AND d.quantity - d.canceledQuantity > 0 
+								".$filterMovements." 
+								".$filterArticles." 
+							GROUP BY d.articleId
+						) s ON s.articleId = a.id 
 
-						        UNION ALL
-						        SELECT articleId, warehouseId, quantity * -1 AS auxQuantity
-						        FROM detailsByDeliveryNotes
-						        WHERE deleted = 0
-						          AND articleId  IN (".$filterIdsArticles.")
-						          ".str_replace("[TABLE].","",$filterWarehouses)."
+						/* summaryStock (stockRaw agregado) */
+						LEFT JOIN (
+							SELECT articleId ".$stockPivot." 
+							FROM (
+								SELECT sm.articleId, sm.warehouseId, SUM(sm.quantity * IF(sm.input = 1, 1, -1)) AS qty 
+								FROM stockMovements sm 
+								WHERE 	sm.deleted = 0 
+									AND sm.warehouseId IN (".$warehouseIds.") 
+								GROUP BY sm.articleId, sm.warehouseId 
+								UNION ALL 
+								SELECT dn.articleId, dn.warehouseId, -SUM(dn.quantity) AS qty 
+								FROM detailsByDeliveryNotes dn 
+								WHERE 	dn.deleted = 0 
+									AND dn.warehouseId IN (".$warehouseIds.") 
+								GROUP BY dn.articleId, dn.warehouseId 
+								UNION ALL 
+								SELECT db.articleId, bi.warehouseId, SUM(db.quantity) AS qty 
+								FROM detailsByBill db 
+								INNER JOIN bills bi ON db.billId = bi.id 
+								WHERE 	bi.deleted = 0 AND db.deleted = 0 
+									AND bi.warehouseId IN (".$warehouseIds.") 
+								GROUP BY db.articleId, bi.warehouseId 
+								UNION ALL 
+								SELECT d.articleId, o.warehouseId, -SUM(d.quantity - d.canceledQuantity - d.deliveredQuantity) AS qty 
+								FROM detailsByOrder d 
+								INNER JOIN orders o ON d.orderId = o.id
+								WHERE 	o.deleted = 0 AND d.deleted = 0 
+									AND d.affectsStock = 1 AND d.articleId > 0 
+									AND o.warehouseId IN (".$warehouseIds.") 
+									AND o.stateId NOT IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT') 
+								GROUP BY d.articleId, o.warehouseId
+							) stockRaw 
+							GROUP BY articleId
+						) ss ON ss.articleId = a.id 
 
-						        UNION ALL
-						        SELECT db.articleId, bi.warehouseId, db.quantity AS auxQuantity
-						        FROM detailsByBill db
-						        INNER JOIN bills bi ON db.billId = bi.id
-						        WHERE bi.deleted = 0
-						          AND db.deleted = 0
-						          AND db.articleId   IN (".$filterIdsArticles.")
-						          ".str_replace("[TABLE].","bi.",$filterWarehouses)." 
-
-						        UNION ALL
-						        SELECT d.articleId,
-						               o.warehouseId,
-						               -1 * (d.quantity - d.canceledQuantity - d.deliveredQuantity) AS auxQuantity
-						        FROM detailsByOrder d
-						        INNER JOIN orders o ON d.orderId = o.id
-						        WHERE o.deleted = 0
-						          AND d.deleted = 0
-						          AND d.affectsStock = 1
-						          AND d.articleId > 0
-						          AND d.articleId   IN (".$filterIdsArticles.")
-						          ".str_replace("[TABLE].","o.",$filterWarehouses)." 
-						          AND o.stateId NOT IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT')
-						    ) AS auxStock
-						    GROUP BY articleId, warehouseId
-						) AS summaryStock
-						   ON summary.articleId = summaryStock.articleId
-						  AND c.warehouseId = summaryStock.warehouseId
-						INNER JOIN articles a ON summary.articleId = a.id
-						LEFT  JOIN families f ON a.familyId = f.id
+						/* candidates = con ventas en el período O con pedidos pendientes */
 						WHERE a.deleted = 0 
-						  ".$filterArticles." 
-						ORDER BY TRIM(f.description), f.id, TRIM(a.description), a.id;";			
-			} else {
-				$sql = "";
-			}
-		}	
+							AND (
+								s.articleId IS NOT NULL 
+								OR a.id IN (
+									SELECT d.articleId 
+									FROM detailsByOrder d 
+									INNER JOIN orders o ON d.orderId = o.id 
+									INNER JOIN articles a ON a.id = d.articleId 
+									WHERE 	o.deleted = 0 AND d.deleted = 0 AND a.deleted = 0 
+										AND d.affectsStock = 1 
+										AND d.articleId > 0 								
+										AND o.warehouseId IN (".$warehouseIds.") 
+										AND o.stateId NOT IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT') 
+										AND d.quantity - d.canceledQuantity - d.deliveredQuantity > 0 
+										".$filterArticles."
+								)
+							)
+					) base
+				) calc 
+				WHERE quantityToBuy > 0 
+				ORDER BY ".$order.
+				$limit;
 
-		if ($sql != "") {				
-			$query = $this->company_db->query($sql);				
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');			
-			if ($query->num_rows() > 0) {	
-				$estimatedDays = (isset($parameters['estimatedDays']) && (int)$parameters['estimatedDays'] > 0?(int)$parameters['estimatedDays']:0);
-				if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "" && isset($parameters['dateToFilter']) && $parameters['dateToFilter'] != "") {
-					$periodDays = (int)getDifferenceOfDaysBetweenDates($parameters['dateFromFilter'],$parameters['dateToFilter']);
-					if ($periodDays < 1) $periodDays = 1;
-				} else {
-					$periodDays = 1;
-				}	
-
-				$aux = $query->result_array();
-
-				$lstData = null;
-				$idxArticle = -1;
-				$articleId = -1;				
-				for ($i=0; $i < count($aux); $i++) {
-					if ($aux[$i]["id"] != $articleId) {
-						if ($idxArticle >= 0) {
-							$lstData[$idxArticle]['companies'][0] = array('quantityToBuy'=>$quantityTotalToBuyArticle);
-						}
-
-						$idxArticle++;
-						$articleId = $aux[$i]["id"];
-
-						$lstData[$idxArticle]['id'] = $aux[$i]["id"];
-						$lstData[$idxArticle]['code'] = $aux[$i]["code"];
-						$lstData[$idxArticle]['description'] = $aux[$i]["description"];
-						$lstData[$idxArticle]['familyDescription'] = $aux[$i]["familyDescription"];												
-						
-						$quantityTotalToBuyArticle = 0;
-					}
-
-					$estimatedQuantity = ceil(($aux[$i]["periodQuantity"] / $periodDays) * $estimatedDays);
-					if ((int)$aux[$i]["stock"] >= $estimatedQuantity) {
-						$quantityToBuy = 0;						
-					} else {
-						$quantityToBuy = $estimatedQuantity - (int)$aux[$i]["stock"];						
-					}
-					$lstData[$idxArticle]['companies'][$aux[$i]["companyId"]] = array('stock'=>(int)$aux[$i]["stock"],
-				                                                                      'estimatedQuantity'=>$estimatedQuantity,
-				                                                                      'quantityToBuy'=>$quantityToBuy);
-					
-					$quantityTotalToBuyArticle += $quantityToBuy;
-				}
-				if ($idxArticle >= 0) {
-					$lstData[$idxArticle]['companies'][0] = array('quantityToBuy'=>$quantityTotalToBuyArticle);
-				}
-
-				$data = array('list'=>$lstData,
-			                  'totalRecords'=>count($lstData));	
-			}				
+		$query = $this->company_db->query($sql);						
+		if ($query === false) {
+			var_dump($this->company_db->error());			
+		    exit;
+		} else {		
+			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');	
+			if ($query->num_rows() > 0) {							
+				$data = array('list'=>$query->result_array(),
+			                  'totalRecords'=>$queryTotal->row()->totalRecords);	
+			}						
 		}
 
 		return $data;		
 	}  		
-	
+
 }
-
-
 /* End of file Reports_model.php */
 /* Location: ./application/models/Reports_model.php */

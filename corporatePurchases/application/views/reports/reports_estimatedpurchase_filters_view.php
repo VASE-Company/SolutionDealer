@@ -1,27 +1,40 @@
+<?php
+    if (!isset($companyIdsFilter)) $companyIdsFilter = "all";
+?>
 <div class="row">                                                                       
     <div class="form-group" style="float:left;margin-right:10px;">
         <label for="dateFromFilter">Desde</label>
-        <input type="date" id="dateFromFilter" name="dateFromFilter" class="form-control form-control-sm noEnterMyApp" autocomplete="off"  autofocus="1" value="" style="width:140px;">
+        <input type="date" id="dateFromFilter" name="dateFromFilter" class="form-control form-control-sm noEnterMyApp" autocomplete="off"  autofocus="1" value="<?php if (isset($dateFromFilter)) echo $dateFromFilter; ?>" style="width:140px;">
     </div>                                       
     <div class="form-group" style="float:left;margin-right:10px;">
         <label for="dateToFilter">Hasta</label>
-        <input type="date" id="dateToFilter" name="dateToFilter" max="<?php echo getCurrentDate(false); ?>" class="form-control form-control-sm noEnterMyApp" autocomplete="off" value="" style="width:140px;">                
-    </div>    
+        <input type="date" id="dateToFilter" name="dateToFilter" max="<?php echo getCurrentDate(false); ?>" class="form-control form-control-sm noEnterMyApp" autocomplete="off" value="<?php if (isset($dateToFilter)) echo $dateToFilter; ?>" style="width:140px;">                
+    </div>       
     <div class="form-group" style="float:left;margin-right:10px;width:140px;">
         <label for="companyIdsFilter">Empresas</label>
         <select class="noEnterMyApp" multiple="multiple" id="companyIdsFilter" name="companyIdsFilter">
             <?php                                                                                                               
                 if (isset($companies)) { 
-                    for($i=0; $i < count($companies); $i++) {                                                
+                    if ($companyIdsFilter == 'all') {
+                        $arrSelected = array('all');
+                    } else {
+                        $arrSelected = explode('|',$companyIdsFilter);
+                    }
+                    for($i=0; $i < count($companies); $i++) {                         
+                        if (in_array('all',$arrSelected) || in_array($companies[$i]['id'],$arrSelected)) {
+                            $selected = ' selected="selected" ';
+                        } else {
+                            $selected = '';
+                        }                                               
             ?>
-            <option value="<?php echo $companies[$i]['id']; ?>" selected="selected"><?php echo $companies[$i]['description']; ?></option>                                
+            <option value="<?php echo $companies[$i]['id']; ?>" <?php echo $selected; ?>><?php echo $companies[$i]['description']; ?></option>                                
             <?php 
                     }
-                }
+                } 
             ?>                                
         </select>
         <input type="hidden" id="companyIdsFilterSelected" name="companyIdsFilterSelected" value="" />                   
-    </div>        
+    </div>            
     <div class="form-group" style="width:140px; float:left; margin-right:10px;">
         <label for="articleFilter">Artículo</label>
         <input type="text" class="form-control form-control-sm noEnterMyApp" id="articleFilter" name="articleFilter" placeholder="Código" autocomplete="off" value="">
@@ -32,7 +45,19 @@
             <?php                                                         
                 for ($i=0; $i < count($articleStates); $i++) {                                                
             ?>
-            <option value="<?php echo $articleStates[$i]['id']; ?>"><?php echo $articleStates[$i]['description']; ?></option>
+            <option value="<?php echo $articleStates[$i]['id']; ?>" <?php echo ((isset($articleStates[$i]['selected']) && $articleStates[$i]['selected'] == true)?' selected="selected" ':''); ?>><?php echo $articleStates[$i]['description']; ?></option>
+            <?php
+                }
+            ?>
+        </select>                      
+    </div>
+    <div class="form-group" style="width:auto; float:left; margin-right:10px;">
+        <label for="articleUsualIdFilter">Habitual</label>
+        <select id="articleUsualIdFilter" name="articleUsualIdFilter" class="form-control form-control-sm">                                
+            <?php                                                         
+                for ($i=0; $i < count($articleUsual); $i++) {                                                
+            ?>
+            <option value="<?php echo $articleUsual[$i]['id']; ?>" <?php echo ((isset($articleUsual[$i]['selected']) && $articleUsual[$i]['selected'] == true)?' selected="selected" ':''); ?>><?php echo $articleUsual[$i]['description']; ?></option>
             <?php
                 }
             ?>
@@ -55,7 +80,7 @@
     </div> 
     <div class="form-group" style="float:left;margin-right:10px;">
         <label for="estimatedDays">Estimación</label>
-        <input type="number" min="1" id="estimatedDays" name="estimatedDays" class="form-control form-control-sm noEnterMyApp" autocomplete="off" value="" placeholder="Días" style="width:100px;" required="1">
+        <input type="number" min="1" id="estimatedDays" name="estimatedDays" class="form-control form-control-sm noEnterMyApp" autocomplete="off" value="<?php if (isset($estimatedDays)) echo $estimatedDays; ?>" placeholder="Días" style="width:100px;" required="1">
     </div>     
 </div> 
 <?php

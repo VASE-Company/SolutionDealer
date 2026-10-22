@@ -572,10 +572,10 @@ if (!function_exists('getNameMonth'))
 
  if (!function_exists('getCurrentDateSpanish'))
 {
-	function getCurrentDateSpanish() {		
+	function getCurrentDateSpanish($includeNameDay=true) {		
    		$daysArr = array('Domingo', 'Lunes', 'Martes','Miercoles', 'Jueves', 'Viernes', 'Sabado');
-     
-	    return $daysArr[date('w')].", ".date('d')." de ".getNameMonth(date('m'))." de ".date('Y');
+
+	    return ($includeNameDay?$daysArr[date('w')].", ":"").date('d')." de ".getNameMonth(date('m'))." de ".date('Y');
 	}
 }	
 
@@ -633,17 +633,21 @@ if (!function_exists('getCurrentDateSystem'))
 
 if (!function_exists('getCurrentDate'))
 {
-	function getCurrentDate($withHMS=true,$daysAdd=0) {		
+	function getCurrentDate($withHMS=true,$daysAdd=0,$monthAdd=0) {				
 		if ($daysAdd != 0) {
-			$daysAdd = $daysAdd." day ";
+			$periodAdd = $daysAdd." day ";
 		} else {
-			$daysAdd = "";
+			if ($monthAdd != 0) {
+				$periodAdd = $monthAdd." month ";
+			} else {
+				$periodAdd = "";
+			}
 		}
 
 		if ($withHMS) {
-			$date = date('Y-m-d H:i:s',strtotime($daysAdd.getTimeZone()));
+			$date = date('Y-m-d H:i:s',strtotime($periodAdd.getTimeZone()));
 		} else {			
-			$date = date('Y-m-d',strtotime($daysAdd.getTimeZone()));
+			$date = date('Y-m-d',strtotime($periodAdd.getTimeZone()));
 		}
 
 		return $date;
