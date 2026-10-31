@@ -16,6 +16,7 @@ class Notifications_model extends CI_Model{
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		if (isset($parameters)) {			
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
 				$filter .= " AND notifications.id = ".$parameters['idFilter'];				
@@ -140,6 +141,8 @@ class Notifications_model extends CI_Model{
 	}	
 
 	function setNotificationRead($parameters=NULL) {
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			$notificationsConfig = $this->config->item('notificationsConfig');
 
@@ -188,6 +191,7 @@ class Notifications_model extends CI_Model{
 		                            'totalRecords'=>0);	
 
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		if (isset($parameters)) {	
 			if (isset($parameters['userId']) && $parameters['userId'] > 0) {
 				$filter .= " notificationsTypes.id IN(SELECT DISTINCT typeId FROM notifications WHERE notifications.deleted = 0 AND notifications.userId = ".$parameters['userId'].")";

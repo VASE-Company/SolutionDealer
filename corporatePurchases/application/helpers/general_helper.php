@@ -977,5 +977,106 @@ if (!function_exists('orderSummaryOfBudgetsReassigned'))
 	} 	
 }
 
+
+if (!function_exists('sanitizeId'))
+{
+	function sanitizeId($value) {
+		if (is_null($value) || is_bool($value) || $value === '') return $value;
+		if (is_int($value)) return $value;
+		if (is_float($value)) return (int)$value;
+		if (is_string($value) && is_numeric(trim($value))) return (int)trim($value);
+		return -1;
+	}
+}
+
+if (!function_exists('sanitizeIdList')) 
+{
+	function sanitizeIdList($value, $separator='|')	{
+		if (is_null($value) || is_bool($value) || $value === '' || $value === 'all') return $value;
+		if (is_int($value) || is_float($value)) return (string)(int)$value;
+		if (is_array($value)) {
+			$items = $value;
+		} else {
+			$items = explode($separator, (string)$value);
+		}
+		$ids = array();
+		foreach ($items as $item) {
+			$item = trim((string)$item);
+			if ($item !== '' && is_numeric($item)) $ids[] = (int)$item;
+		}
+		if (count($ids) == 0) return "-1";
+		return implode($separator, $ids);
+	}
+}
+
+if (!function_exists('sanitizeCode'))
+{
+	function sanitizeCode($value) {
+		if (is_null($value) || is_bool($value) || is_int($value) || is_float($value)) return $value;
+		return preg_replace('/[^A-Za-z0-9_\-|]/', '', (string)$value);
+	}
+}
+
+if (!function_exists('sanitizeDate'))
+{
+	function sanitizeDate($value) {
+		if (is_null($value) || $value === '') return $value;
+		$value = trim((string)$value);
+		if (preg_match('/^\d{4}-\d{2}(-\d{2})?( \d{2}:\d{2}(:\d{2}(\.\d+)?)?)?$/', $value)) return $value;
+		return '';
+	}
+}
+
+if (!function_exists('sanitizeQueryParameters'))
+{
+
+ 	//Normaliza el array $parameters que reciben los modelos, segun el tipo de cada clave.
+ 	//Las claves de texto libre (textFilter, articleFilter, codeFilter, etc.) no se tocan porque los
+ 	//modelos ya las pasan por escape(). Las claves booleanas o de control tampoco.
+	//$typeOverrides permite indicar el tipo de una clave en una funcion puntual, cuando no sigue la
+	//convencion general. Ej.: en getStates el id es un codigo -> array('idFilter'=>'code').
+	//Tipos: 'id', 'code', 'date', 'text' (no se toca) o 'list' con su separador ('list|', 'list,', 'list_').
+	function sanitizeQueryParameters($parameters, $typeOverrides=array())
+	{
+		if (!is_array($parameters)) return $parameters;
+		$idKeys = array('idFilter','page','generalLimit','articlesLimit','limit','recordsPerPage','estimatedDays',
+		                'excludeIdFilter','typeOrIdFilter','entityIdFilter','userId',
+		                'activeFilter','affectsStockFilter','readFilter','inputFilter','allowOrdersFilter',
+		                'allowPaymentsFilter','articleActiveFilter','articleUsualFilter');
+		$codeKeys = array('stateIdFilter','typeIdFilter','deliveryStateIdFilter','valueTypeIdFilter','typeFilter',
+		                  'alwaysStateFilter','userRolFilter','typeStockFilter','registerTypeFilter','subtypeFilter',
+		                  'groupedByFilter','dateTypeFilter','fieldOrder','typeOrder');
+		$listKeys = array('companyIdsFilter'=>'|','managerIdsFilter'=>'|','familyIdsFilter'=>'|','idsFilter'=>'|',
+		                  'selectedFilter'=>'|','notSelectedFilter'=>'|','rolesIdFilter'=>',','excludedIdsFilter'=>'_');
+		$dateKeys = array('dateFromFilter','dateToFilter');
+
+		 foreach ($parameters as $key => $value) {		 		
+			if (isset($typeOverrides[$key])) {
+				$type = $typeOverrides[$key];
+				if ($type == 'id') {
+					$parameters[$key] = sanitizeId($value);
+				} else if ($type == 'code') {
+					$parameters[$key] = sanitizeCode($value);
+				} else if ($type == 'date') {
+					$parameters[$key] = sanitizeDate($value);
+				} else if (substr($type, 0, 4) == 'list') {
+					$parameters[$key] = sanitizeIdList($value, (strlen($type) > 4 ? substr($type, 4, 1) : '|'));
+				}
+				//'text' u otro valor: no se modifica
+			} else if (isset($listKeys[$key])) { 			
+				$parameters[$key] = sanitizeIdList($value, $listKeys[$key]);
+			} else if (in_array($key, $codeKeys, true)) {
+				$parameters[$key] = sanitizeCode($value);
+			} else if (in_array($key, $dateKeys, true)) {
+				$parameters[$key] = sanitizeDate($value);
+			} else if (in_array($key, $idKeys, true) || preg_match('/IdFilter$/', $key)) {
+				$parameters[$key] = sanitizeId($value);
+			}
+		}
+
+		return $parameters;
+	}
+}
+
 /* End of file general_helper.php */
 /* Location: ./application/helpers/general_helper.php */

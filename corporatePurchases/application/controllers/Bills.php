@@ -337,8 +337,8 @@ class Bills extends CI_Controller {
 				if (!$this->bills->deleteBill($billId)) {						
 					$error = "No se pudo eliminar el registro, intente nuevamente.";					
 				}	
-			} else {				
-				$error = "El registro no se puede eliminar porque existen datos relacionados a él.";
+			} else {								
+				$error = ($this->bills->deleteError != "" ? $this->bills->deleteError : "El registro no se puede eliminar porque existen datos relacionados a él.");
 			}			
 		} else {
 			$error = "No posee permisos para eliminar el registro.";

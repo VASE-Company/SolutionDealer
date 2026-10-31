@@ -16,6 +16,7 @@ class Companies_model extends CI_Model{
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		if (isset($parameters)) {
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -98,6 +99,7 @@ class Companies_model extends CI_Model{
 	}
 
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -147,6 +149,8 @@ class Companies_model extends CI_Model{
 	}	
 
 	function deleteCompany($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteCompanyValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -166,6 +170,8 @@ class Companies_model extends CI_Model{
 	}
 
 	function deleteCompanyValid($id=-1){
+		$id = (int)$id;
+		
 		if ($id > 0){	
 			$allowDelete = true;
 			

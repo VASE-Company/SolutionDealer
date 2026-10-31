@@ -16,6 +16,8 @@ class Branchoffices_model extends CI_Model{
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
+		
 		if (isset($parameters)) {
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -85,7 +87,7 @@ class Branchoffices_model extends CI_Model{
 		        FROM branchOffices INNER JOIN companies ON branchOffices.companyId = companies.id
 				WHERE branchOffices.deleted = 0 ".$filter." 
 				ORDER BY ".$order.
-				$limit;		
+				$limit;						
 			
 		$query = $this->company_db->query($sql);
 		$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
@@ -125,6 +127,7 @@ class Branchoffices_model extends CI_Model{
 	}
 
 	function existsValue($value='', $id=-1, $field='', $extraConditions='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -193,6 +196,8 @@ class Branchoffices_model extends CI_Model{
 	}	
 
 	function deleteBranchOffice($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteBranchOfficeValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -212,6 +217,8 @@ class Branchoffices_model extends CI_Model{
 	}
 
 	function deleteBranchOfficeValid($id=-1){
+		$id = (int)$id;
+
 		if ($id > 0){	
 			$allowDelete = true;
 
@@ -245,7 +252,8 @@ class Branchoffices_model extends CI_Model{
 		}		
 	}	
 
-	function getSectors($branchOfficeId=-1){				
+	function getSectors($branchOfficeId=-1){
+		$branchOfficeId = (int)$branchOfficeId;				
 		$sectors = array('list'=>NULL, 
 		                 'totalRecords'=>0);
 				

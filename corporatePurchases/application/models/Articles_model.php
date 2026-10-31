@@ -9,7 +9,9 @@ class Articles_model extends CI_Model{
         $this->company_db = $this->load->database('default', TRUE);         
     }      
     
-   	function getArticles($parameters=NULL){				
+   function getArticles($parameters=NULL){
+   	$parameters = sanitizeQueryParameters($parameters);
+
 		$articles = array('list'=>NULL, 
 		                  'totalRecords'=>0);
 		
@@ -123,7 +125,9 @@ class Articles_model extends CI_Model{
 		return $articles;
 	}
 
-	function getLocationsByArticle($articleId=-1){				
+	function getLocationsByArticle($articleId=-1){	
+		$articleId = (int)$articleId;			
+
 		$locations = array('list'=>NULL, 
 		                   'totalRecords'=>0);
 		
@@ -153,6 +157,8 @@ class Articles_model extends CI_Model{
 
 	function getLocationDescription($articleId=-1,$warehouseId=-1) {	
 		$location = "";
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
 
 		if ($articleId > 0 && $warehouseId > 0) {
 			$sql = "SELECT * 
@@ -198,6 +204,7 @@ class Articles_model extends CI_Model{
 	}
 	
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -252,7 +259,9 @@ class Articles_model extends CI_Model{
 		}
 	}	
 	
-	function _setArticleLocations($articleId=-1,$locations=NULL) {			
+	function _setArticleLocations($articleId=-1,$locations=NULL) {		
+		$articleId = (int)$articleId;	
+
 		if ($articleId > 0) { 			
 			if (isset($locations) && count($locations) > 0) {			
 				for ($i=0; $i < count($locations); $i++) {						
@@ -276,6 +285,8 @@ class Articles_model extends CI_Model{
 	}		
 
 	function deleteArticle($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteArticleValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -295,6 +306,8 @@ class Articles_model extends CI_Model{
 	}
 
 	function deleteArticleValid($id=-1){
+		$id = (int)$id;
+		
 		if ($id > 0){	
 			$allowDelete = true;
 			
@@ -700,6 +713,10 @@ class Articles_model extends CI_Model{
 	}
 
 	function getStockArticle($articleId=-1,$warehouseId=-1,$availableStock=false,$exludeStockMovementId=-1) {				
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+		$exludeStockMovementId = (int)$exludeStockMovementId;
+
 		$stock = array('stock'=> 0,
 	                   'available'=>0,
 	                   'ready'=>0,
@@ -777,6 +794,10 @@ class Articles_model extends CI_Model{
 	}
 
 	function getOutOfStock($articleId=-1,$warehouseId=-1,$excludedOrderId=-1) {
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+		$excludedOrderId = (int)$excludedOrderId;
+
 		$details = array('list'=>NULL, 
 		                 'totalRecords'=>0);
 
@@ -793,11 +814,10 @@ class Articles_model extends CI_Model{
 				  	      (quantity - readyQuantity) > 0
 				  	ORDER BY orders.maximumDate, orders.id ";						  	      
 				
-			$query = $this->company_db->query($sql);
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
+			$query = $this->company_db->query($sql);			
 			if ($query->num_rows() > 0){
 				$details = array('list'=>$query->result_array(), 
-			                     'totalRecords'=>$queryTotal->row()->totalRecords);
+			                    'totalRecords'=>$query->num_rows());
 			}			
 		}
 
@@ -805,6 +825,9 @@ class Articles_model extends CI_Model{
 	}
 
 	function getNotAvailableStock($articleId=-1,$warehouseId=-1) {
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		$details = array('list'=>NULL, 
 		                 'totalRecords'=>0);
 
@@ -820,27 +843,30 @@ class Articles_model extends CI_Model{
 				  	      (readyQuantity - deliveredQuantity) > 0
 				  	ORDER BY orders.id ";						  	      
 				
-			$query = $this->company_db->query($sql);
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
+			$query = $this->company_db->query($sql);			
 			if ($query->num_rows() > 0){
 				$details = array('list'=>$query->result_array(), 
-			                     'totalRecords'=>$queryTotal->row()->totalRecords);
+			                    'totalRecords'=>$query->num_rows());
 			}			
 		}
 
 		return $details;
 	}
-
-	//function updatePendingStock($articleId=-1,$warehouseId=-1,$originEntity=null) {
-	function updatePendingStock($articleId=-1,$warehouseId=-1) {
+	
+	function updatePendingStock($articleId=-1,$warehouseId=-1,$excludedOrderId=-1) {
 		$this->load->model('orders_model','orders');
 
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+		$excludedOrderId = (int)$excludedOrderId;
+
 		if ($articleId > 0 && $warehouseId > 0) {			
-			$currentStock = $this->getStockArticle($articleId,$warehouseId,true);			
+			$currentStock = $this->getStockArticle($articleId,$warehouseId,true);	
+		
 			if ($currentStock['available'] > 0) {
 				$availableStock = $currentStock['available'];
 				
-				$details = $this->getOutOfStock($articleId,$warehouseId);
+				$details = $this->getOutOfStock($articleId,$warehouseId,$excludedOrderId);
 				$details = $details['list'];
 
 				if (isset($details) && count($details) > 0) {
@@ -860,63 +886,45 @@ class Articles_model extends CI_Model{
 						if ((int)$error['code'] <= 0) {														
 							$availableStock -= $readyStock;							
 							
-							/*
-							if (isset($originEntity)) {
-								$data['entity'] = $originEntity['type'];
-								$data['entityId'] = $originEntity['id'];
-								$data['entityMainId'] = (isset($originEntity['mainId'])?$originEntity['mainId']:null);
-								$data['orderId'] = $details[$i]['orderId'];
-								$data['detailOrderId'] = $details[$i]['detailId'];
-								$data['quantity'] = $readyStock;
-								$data['unitPrice'] = (isset($originEntity['unitPrice'])?$originEntity['unitPrice']:0);								
+							$stockAssign = $readyStock;
 
-								$this->orders->setStockByOrden($data);
+							$sql = "SELECT * FROM (
+							        SELECT 'sm' AS type, stockMovements.id, 0 AS mainId, stockMovements.freeQuantity, stockMovements.unitPrice, stockMovements.date  
+									FROM stockMovements 
+									WHERE stockMovements.deleted = 0 
+										  AND stockMovements.freeQuantity > 0 
+									      AND stockMovements.articleId = ".$articleId."  
+									      AND stockMovements.warehouseId = ".$warehouseId."  
+									UNION ALL 
+									SELECT 'bill' AS type, detailsByBill.id, bills.id AS mainId, detailsByBill.freeQuantity, detailsByBill.unitPrice, bills.date  
+									FROM detailsByBill INNER JOIN bills 
+								    ON detailsByBill.billId = bills.id
+								    WHERE bills.deleted = 0 AND detailsByBill.deleted = 0 
+								    	  AND detailsByBill.freeQuantity > 0 
+								          AND detailsByBill.articleId = ".$articleId."  
+									      AND bills.warehouseId = ".$warehouseId." 
+									) AS summary
+									ORDER BY date";										
+							
+							$query = $this->company_db->query($sql);				
+							if ($query->num_rows() > 0) {
+								$stocks = $query->result_array();
 
-															
-							} else {
-							*/
-								$stockAssign = $readyStock;
+								for ($j=0; $j < count($stocks) && $stockAssign > 0; $j++) {									
+									$data['entity'] = $stocks[$j]['type'];
+									$data['entityId'] = $stocks[$j]['id'];
+									$data['entityMainId'] = ($stocks[$j]['mainId'] > 0?$stocks[$j]['mainId']:null);
+									$data['orderId'] = $details[$i]['orderId'];
+									$data['detailOrderId'] = $details[$i]['detailId'];										
+									$data['quantity'] = ($stocks[$j]['freeQuantity'] >= $stockAssign?$stockAssign:$stocks[$j]['freeQuantity']);
+									$data['unitPrice'] = $stocks[$j]['unitPrice'];;								
 
-								$sql = "SELECT * FROM (
-								        SELECT 'sm' AS type, stockMovements.id, 0 AS mainId, stockMovements.freeQuantity, stockMovements.unitPrice, stockMovements.date  
-										FROM stockMovements 
-										WHERE stockMovements.deleted = 0 
-											  AND stockMovements.freeQuantity > 0 
-										      AND stockMovements.articleId = ".$articleId."  
-										      AND stockMovements.warehouseId = ".$warehouseId."  
-										UNION ALL 
-										SELECT 'bill' AS type, detailsByBill.id, bills.id AS mainId, detailsByBill.freeQuantity, detailsByBill.unitPrice, bills.date  
-										FROM detailsByBill INNER JOIN bills 
-									    ON detailsByBill.billId = bills.id
-									    WHERE bills.deleted = 0 AND detailsByBill.deleted = 0 
-									    	  AND detailsByBill.freeQuantity > 0 
-									          AND detailsByBill.articleId = ".$articleId."  
-										      AND bills.warehouseId = ".$warehouseId." 
-										) AS summary
-										ORDER BY date";										
-								
-								$query = $this->company_db->query($sql);				
-								if ($query->num_rows() > 0) {
-									$stocks = $query->result_array();
+									$this->orders->setStockByOrden($data);
 
-									for ($j=0; $j < count($stocks) && $stockAssign > 0; $j++) {									
-										$data['entity'] = $stocks[$j]['type'];
-										$data['entityId'] = $stocks[$j]['id'];
-										$data['entityMainId'] = ($stocks[$j]['mainId'] > 0?$stocks[$j]['mainId']:null);
-										$data['orderId'] = $details[$i]['orderId'];
-										$data['detailOrderId'] = $details[$i]['detailId'];										
-										$data['quantity'] = ($stocks[$j]['freeQuantity'] >= $stockAssign?$stockAssign:$stocks[$j]['freeQuantity']);
-										$data['unitPrice'] = $stocks[$j]['unitPrice'];;								
-
-										$this->orders->setStockByOrden($data);
-
-										$stockAssign -= $data['quantity'];
-									}
+									$stockAssign -= $data['quantity'];
 								}
-							/*
 							}
-							*/							
-
+							
 							$this->orders->updateTotalDetailByOrden($details[$i]['detailId']);	
 							
 							$this->orders->updateOrderTotal($details[$i]['orderId']);
@@ -929,6 +937,8 @@ class Articles_model extends CI_Model{
 
 	function discountStockMovement($stockMovementId=-1) {
 		$this->load->model('stockMovements_model','stockMovements');
+
+		$stockMovementId = (int)$stockMovementId;
 
 		$sql = "SELECT * 
     			FROM stockMovements  
@@ -984,50 +994,11 @@ class Articles_model extends CI_Model{
 		}
 	}
 
-/*
-	function updateAllPendingStock() {
-		
-		$sql = "SELECT articleId, warehouseId, (SUM(auxQuantity) - SUM(auxPending)) AS available 
-		        FROM
-			    (
-					SELECT articleId, warehouseId, SUM(quantity * IF(input=1,1,-1)) AS auxQuantity, 0 AS auxPending
-					FROM stockMovements WHERE deleted = 0 
-					GROUP BY articleId, warehouseId
-					UNION ALL 
-					SELECT articleId, warehouseId, SUM(quantity * -1) AS auxQuantity, 0 AS auxPending
-					FROM detailsByDeliveryNotes WHERE deleted = 0 
-					GROUP BY articleId, warehouseId
-					UNION ALL 
-					SELECT articleId, warehouseId, quantity AS auxQuantity, 0 AS auxPending
-				    FROM detailsByBill INNER JOIN bills 
-				    ON detailsByBill.billId = bills.id
-				    WHERE bills.deleted = 0 AND detailsByBill.deleted = 0 
-				    GROUP BY detailsByBill.articleId, bills.warehouseId
-					UNION ALL 
-				    SELECT articleId, warehouseId, 0 AS auxQuantity, SUM(readyQuantity - deliveredQuantity) AS auxPending
-				    FROM detailsByOrder INNER JOIN orders 
-				    ON detailsByOrder.orderId = orders.id
-				    WHERE orders.deleted = 0 AND detailsByOrder.deleted = 0 AND 
-				          NOT orders.stateId IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT')
-				    GROUP BY detailsByOrder.articleId, orders.warehouseId
-				) AS Summary 				
-				GROUP BY articleId, warehouseId ";
-		
-		$query = $this->company_db->query($sql);			
-		if ($query->num_rows() > 0){	
-			$stock = $query->result_array();
+	function getDetailedValuedStock($articleId=-1,$warehouseId=-1,$stockType=""){	
 
-			if (isset($stock) && count($stock) > 0) {
-				for ($i=0; $i < count($stock); $i++) {	
-					if ($stock[$i]['available'] > 0) {
-						$this->updatePendingStock($stock[$i]['articleId'],$stock[$i]['warehouseId']);
-					}
-				}
-			}
-		}
-	}
-*/
-	function getDetailedValuedStock($articleId=-1,$warehouseId=-1,$stockType=""){				
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		$detailsStock = array('list'=>NULL, 
 		                      'totalRecords'=>0);
 
@@ -1078,8 +1049,7 @@ class Articles_model extends CI_Model{
 			$movementsTotalQuantity = 0; 
 			$auxDetailsStock = array();
 
-			$query = $this->company_db->query($sql);
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
+			$query = $this->company_db->query($sql);			
 			if ($query->num_rows() > 0) {
 				$auxDetailsStock = $query->result_array();
 				
@@ -1115,7 +1085,10 @@ class Articles_model extends CI_Model{
 		return $detailsStock;
 	}
 
-	function getDetailedUnitPrice($articleId=-1,$warehouseId=-1){				
+	function getDetailedUnitPrice($articleId=-1,$warehouseId=-1){		
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		$detailsUnitPrice = array('list'=>NULL, 
 		                      'totalRecords'=>0);
 
@@ -1156,11 +1129,10 @@ class Articles_model extends CI_Model{
 		        $sqlBills.") AS summary 		        
 				ORDER BY summary.date";						
 
-			$query = $this->company_db->query($sql);
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
+			$query = $this->company_db->query($sql);			
 			if ($query->num_rows() > 0) {				
 				$detailsUnitPrice = array('list'=>$query->result_array(), 
-		                                  'totalRecords'=>$queryTotal->row()->totalRecords);	
+		                                'totalRecords'=>$query->num_rows());	
 			}	
 						
 		}
@@ -1168,7 +1140,9 @@ class Articles_model extends CI_Model{
 		return $detailsUnitPrice;
 	}
 
-	function getDetailLastUnitPrice($articleId=-1){				
+	function getDetailLastUnitPrice($articleId=-1){	
+		$articleId = (int)$articleId;			
+
 		$lastPriceDetail = null;
 
 		if ($articleId > 0) {					
@@ -1195,8 +1169,7 @@ class Articles_model extends CI_Model{
 					ORDER BY YEAR(date) DESC, MONTH(date) DESC, DAY(date) DESC, realDate DESC
 					LIMIT 1";		
 
-			$query = $this->company_db->query($sql);
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
+			$query = $this->company_db->query($sql);			
 			if ($query->num_rows() > 0) {				
 				$row = $query->row_array();
 
@@ -1211,6 +1184,8 @@ class Articles_model extends CI_Model{
 	}
 
 	function updateLastUnitPrice($articleId=-1) {
+		$articleId = (int)$articleId;
+
 		$sql = "SELECT id 		               
 		        FROM articles
 		        WHERE articles.deleted = 0";

@@ -16,6 +16,8 @@ class Suppliers_model extends CI_Model{
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -106,6 +108,7 @@ class Suppliers_model extends CI_Model{
 	}
 	
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -156,6 +159,8 @@ class Suppliers_model extends CI_Model{
 	}	
 	
 	function deleteSupplier($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteSupplierValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -175,6 +180,8 @@ class Suppliers_model extends CI_Model{
 	}
 
 	function deleteSupplierValid($id=-1){
+		$id = (int)$id;
+		
 		if ($id > 0){	
 			$allowDelete = true;	
 

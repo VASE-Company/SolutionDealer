@@ -7,7 +7,7 @@
         <?php if (isset($data) && count($data) > 0 && $allowExport) { ?>
         <div class="row">
             <div class="col-sm-12">
-                <a href="javascript:generalExport('reports/export','<?php echo $filterExportGet; ?>');" class="pagination pagination-sm paginate_button page-item page-link" title="exportar" style="float:left; margin-right:5px;padding: 4px 8px 5px 8px;">
+                <a href="javascript:generalExport('reports/export','<?php echo $filterExportGet; ?>');" class="btn without-padding" title="exportar">
                     <i class="fas fa-download"></i>
                 </a>
             </div>
@@ -55,7 +55,7 @@
                         ?>
                         <tr ondblclick="onClick('btnEditReportOrder<?php echo $data[$i]['orderId']; ?>_<?php echo $data[$i]['detailOrderId']; ?>')">
                             <td nowrap="nowrap" class="text-center">
-                                <a id="btnEditReportOrder<?php echo $data[$i]['orderId']; ?>_<?php echo $data[$i]['detailOrderId']; ?>" href="<?php echo base_url(); ?>orders/edit/<?php echo $data[$i]['orderId']; ?>" title="editar/ver pedido">
+                                <a id="btnEditReportOrder<?php echo $data[$i]['orderId']; ?>_<?php echo $data[$i]['detailOrderId']; ?>" href="<?php echo base_url(); ?>orders/edit/<?php echo $data[$i]['orderId']; ?>" title="editar/ver pedido" class="btn without-padding">
                                     <i class="far fa-edit"></i>
                                 </a>
                             </td>

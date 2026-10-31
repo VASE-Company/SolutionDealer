@@ -98,6 +98,8 @@ function openArticlesFinderOrderEdit(row) {
 	if (row == null) row = 0;
 
 	if (row > 0 && row <= parseInt($('#detailsCount').val())) {
+		if ($("#detailCode"+row).prop('readonly')) return;
+		
 		$('#rowArticlesFinder').val(row);	
 
 		var url = 'orders/articlesFinder/';
@@ -169,6 +171,8 @@ function searchArticleOrderEdit(row) {
 	if (row == null) row = 0;
 
 	if (row > 0 && row <= parseInt($('#detailsCount').val())) {
+		if ($("#detailCode"+row).prop('readonly')) return;
+
 		if ($("#detailCode"+row).val() != $("#detailOriginalCode"+row).val()) {
 			//Change the code of article
 			var code = $.trim($("#detailCode"+row).val());
@@ -271,7 +275,7 @@ function newRowDetailOrderEdit() {
 		if (!editImportsOrderEdit()) rowHtml = rowHtml + ' readonly="readonly"';
 		rowHtml = rowHtml + '></td>';
 	}
-	rowHtml = rowHtml + '<td class="without-padding"><input type="number" min="0" step="1" id="detailQuantity'+row+'" name="detailQuantity'+row+'" class="form-control form-control-sm detailColumn text-right" maxlength="3" autocomplete="off" value="1" onchange="calculateTotalOrderEdit()" onfocus="this.select();"></td>';
+	rowHtml = rowHtml + '<td class="without-padding"><input type="number" min="1" step="1" id="detailQuantity'+row+'" name="detailQuantity'+row+'" class="form-control form-control-sm detailColumn text-right" maxlength="3" autocomplete="off" value="1" onchange="calculateTotalOrderEdit()" onfocus="this.select();"></td>';
 	rowHtml = rowHtml + '<td class="without-padding"><input type="text" id="detailUsual'+row+'" name="detailUsual'+row+'" class="form-control form-control-sm detailColumn text-center" autocomplete="off" value="" readonly="readonly" onfocus="this.select();"></td>';
 	rowHtml = rowHtml + '<td class="without-padding"><input type="text" id="detailFamily'+row+'" name="detailFamily'+row+'" class="form-control form-control-sm detailColumn" maxlength="50" autocomplete="off" value="" readonly="readonly"></td>';
 	if (seeImportsOrderEdit()) rowHtml = rowHtml + '<td class="without-padding"><input type="number" min="0" step="0.01" id="detailTotal'+row+'" name="detailTotal'+row+'" class="form-control form-control-sm detailColumn text-right" maxlength="12" autocomplete="off" value="0.00" readonly="readonly"></td>';		

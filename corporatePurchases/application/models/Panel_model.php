@@ -94,8 +94,8 @@ class Panel_model extends CI_Model{
 		
 		$sql = "SELECT COUNT(*) AS pendingCount,
 		               SUM(bills.amount) AS pendingAmount,
-		               SUM(IF(DATEDIFF(CURDATE(),bills.date) >= ".$generalConfiguration['pendingBillsDays'].",1,0)) AS overdueCount,
-		               SUM(IF(DATEDIFF(CURDATE(),bills.date) >= ".$generalConfiguration['pendingBillsDays'].",bills.amount,0)) AS overdueAmount
+		               SUM(IF(DATEDIFF(CURDATE(),bills.date) >= ".(int)$generalConfiguration['pendingBillsDays'].",1,0)) AS overdueCount,
+		               SUM(IF(DATEDIFF(CURDATE(),bills.date) >= ".(int)$generalConfiguration['pendingBillsDays'].",bills.amount,0)) AS overdueAmount
 		        FROM bills  
 				WHERE bills.deleted = 0 AND bills.stateId = 'PEN'";			
 	

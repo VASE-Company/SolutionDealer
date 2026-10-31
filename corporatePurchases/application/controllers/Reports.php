@@ -446,7 +446,7 @@ class Reports extends CI_Controller {
 
 			case "estimatedpurchase": 					
 				$parametersDescription = $this->_getParametersDescription($parameters);
-				
+								
 				$this->_exportEstimatedPurchase($data, $parametersDescription);
 			break;
 
@@ -1054,7 +1054,7 @@ class Reports extends CI_Controller {
 	
 	function _exportEstimatedPurchase($data, $parametersDescription=NULL) {
 
-    	$companies = $data['companies'];
+    	$warehouses = $data['warehouses'];  
     	$data = $data['data'];	    	
 
 		// INITIALITE SPREADSHEET
@@ -1100,9 +1100,17 @@ class Reports extends CI_Controller {
         $col++;
         $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Código"); 
         $col++;
-        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Descripción"); 
-        $col++;
-        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Total a Comprar");          
+        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Descripción");         
+        if (isset($warehouses)) { 
+            for($i=0; $i < count($warehouses); $i++) {                                                        
+            	$col++;
+	        	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$warehouses[$i]['description']);          
+            }
+	        if (count($warehouses) > 1) {        
+	        	$col++;
+	        	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,"Total a Comprar");          
+	        }
+	    }
                                      		         
 		$styleCell = array(
 				            'fill' => array(
@@ -1131,8 +1139,22 @@ class Reports extends CI_Controller {
 		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['code']); 
 		        $col++;
 		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['description']); 
-		        $col++;
-		        $sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['quantityToBuy']); 		        
+		        if (isset($warehouses)) { 
+		            for($j=0; $j< count($warehouses); $j++) {                                                        
+		            	if (isset($data[$i]['quantityToBuy'.$warehouses[$j]['id']])) {
+                            $quantityToBuy = (int)$data[$i]['quantityToBuy'.$warehouses[$j]['id']];                                            
+                            if ($quantityToBuy < 0) $quantityToBuy = 0;
+                        } else {                                            
+                            $quantityToBuy = 0;                                            
+                        } 
+		            	$col++;
+			        	$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$quantityToBuy);          
+		            }
+			        if (count($warehouses) > 1) {        
+			        	$col++;
+		        		$sheet->setCellValue(getLetterOfExcelColumn($col).$row,$data[$i]['quantityToBuy']); 		        
+			        }
+			    }		        
 			}
 		}
 

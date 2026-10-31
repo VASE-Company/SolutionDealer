@@ -2,6 +2,7 @@
 class Bills_model extends CI_Model{           
 
     private $company_db;    
+    public $deleteError = "";
 
     function __construct() {        
         parent::__construct();        
@@ -68,6 +69,7 @@ class Bills_model extends CI_Model{
 
 	function getGeneralOrder($parameters=NULL){		
 		$order = "";
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {												
 			if (isset($parameters['fieldOrder']) && $parameters['fieldOrder'] != '') {
@@ -112,6 +114,7 @@ class Bills_model extends CI_Model{
 
 	function getGeneralLimit($parameters=NULL){		
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {																
 			if (isset($parameters['page']) && $parameters['page'] > 0) {
@@ -127,6 +130,7 @@ class Bills_model extends CI_Model{
 		$bills = array('list'=>NULL, 
 		                'totalRecords'=>0);
 
+		$parameters = sanitizeQueryParameters($parameters);
 		$filter = $this->getGeneralFilter($parameters);
 		$order = $this->getGeneralOrder($parameters);
 		$limit = $this->getGeneralLimit($parameters);		
@@ -176,10 +180,11 @@ class Bills_model extends CI_Model{
 		$details = array('list'=>NULL, 
 		                 'totalRecords'=>0);
 		
+		$parameters = sanitizeQueryParameters($parameters);
 		$filter = "";		
 		$filterDeleted = "detailsByBill.deleted = 0 ";		
 		$limit = "";								
-
+		
 		if (isset($parameters)) {
 			if (isset($parameters['deletedFilter']) && $parameters['deletedFilter'] == true) {
 				$filterDeleted = "TRUE ";		
@@ -214,8 +219,10 @@ class Bills_model extends CI_Model{
 		
 		return $details;
 	}
-	
+
 	function deleteBill($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteBillValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -229,7 +236,19 @@ class Bills_model extends CI_Model{
 			} else {
 
 				$this->load->model('orders_model','orders');	
-				$this->load->model('articles_model','articles');				
+				$this->load->model('articles_model','articles');	
+
+				$sql = "SELECT stocksByOrder.id, stocksByOrder.detailOrderId, stocksByOrder.quantity, stocksByOrder.orderId
+				        FROM stocksByOrder
+						WHERE stocksByOrder.deleted = 0 AND stocksByOrder.billId = ".$id;
+				$query = $this->company_db->query($sql);
+				$stocksByOrder = ($query->num_rows() > 0?$query->result_array():array());
+
+				$sql = "SELECT DISTINCT detailsByBill.articleId, bills.warehouseId
+				        FROM detailsByBill INNER JOIN bills ON detailsByBill.billId = bills.id
+						WHERE detailsByBill.deleted = 0 AND detailsByBill.billId = ".$id;
+				$query = $this->company_db->query($sql);
+				$billArticles = ($query->num_rows() > 0?$query->result_array():array());			
 
 				$this->company_db->set('deleted',1);	
 				$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -238,46 +257,33 @@ class Bills_model extends CI_Model{
 				$this->company_db->where('billId',$id);				
 				$this->company_db->update('detailsByBill');
 
-				$this->company_db->set('deleted',1);	
-				$this->company_db->set('deletedDate',getCurrentDate());	        
-				$this->company_db->set('deletedUserId',$this->session->userdata('userId'));	         				
-				$this->company_db->where('deleted',0);
-				$this->company_db->where('billId',$id);				
-				$this->company_db->update('stocksByOrder');
+				for ($i=0; $i < count($stocksByOrder); $i++) {
+					$this->company_db->set('deleted',1);
+					$this->company_db->set('deletedDate',getCurrentDate());
+					$this->company_db->set('deletedUserId',$this->session->userdata('userId'));
+					$this->company_db->where('id',(int)$stocksByOrder[$i]['id']);
+					$this->company_db->update('stocksByOrder');
+ 
+					$sql = "UPDATE detailsByOrder
+			                SET readyQuantity = readyQuantity - ".(float)$stocksByOrder[$i]['quantity']."
+			                WHERE deleted = 0 AND id = ".(int)$stocksByOrder[$i]['detailOrderId'];
+					$query = $this->company_db->query($sql);
+ 
+					$this->orders->updateTotalDetailByOrden($stocksByOrder[$i]['detailOrderId']);
+ 
+					$this->orders->updateOrderTotal($stocksByOrder[$i]['orderId']);
+ 				}
+ 
+				for ($i=0; $i < count($billArticles); $i++) {
+					//Los items que quedaron con faltante se vuelven a cubrir con el stock disponible
+					//(la factura ya esta borrada, por lo que sus lotes no participan)
+					$this->articles->updatePendingStock($billArticles[$i]['articleId'],$billArticles[$i]['warehouseId']);
+ 
+					$this->articles->updateLastUnitPrice($billArticles[$i]['articleId']);
+ 				}
+ 
+ 			}
 
-				$sql = "SELECT stocksByOrder.detailOrderId, stocksByOrder.quantity, stocksByOrder.orderId
-				        FROM stocksByOrder 
-						WHERE stocksByOrder.billId = ".$id;								
-				$query = $this->company_db->query($sql);			
-				if ($query->num_rows() > 0) {
-					$auxDetail = $query->result_array();
-
-					for ($i=0; $i < count($auxDetail); $i++) {						
-						$sql = "UPDATE detailsByOrder  			                
-				                SET readyQuantity = readyQuantity - ".$auxDetail[$i]['quantity']." 
-				                WHERE deleted = 0 AND id = ".$auxDetail[$i]['detailOrderId'];		
-						$query = $this->company_db->query($sql);
-
-						$this->orders->updateTotalDetailByOrden($auxDetail[$i]['detailOrderId']);
-
-						$this->orders->updateOrderTotal($auxDetail[$i]['orderId']);						
-					}
-				}
-
-				$sql = "SELECT articleId
-				        FROM detailsByBill 
-						WHERE detailsByBill.billId = ".$id;								
-				$query = $this->company_db->query($sql);			
-				if ($query->num_rows() > 0) {
-					$details = $query->result_array();
-
-					for ($i=0; $i < count($details); $i++) {						
-						$this->articles->updateLastUnitPrice($details[$i]['articleId']);					
-					}
-				}
-
-			}
-			
 			return true;			
 		} else {
 			return false;
@@ -286,37 +292,39 @@ class Bills_model extends CI_Model{
 
 
 	function deleteBillValid($id=-1){
-		if ($id > 0){	
-			$allowDelete = true;	
+		$id = (int)$id;
 
-			if ($allowDelete) {		
-				/*
-				$sql = "SELECT stocksByOrder.* 
-						FROM (stocksByOrder INNER JOIN orders ON stocksByOrder.orderId = orders.id)
-						     INNER JOIN detailsByDeliveryNotes ON detailsByDeliveryNotes.detailOrderId = stocksByOrder.detailOrderId						
-						WHERE stocksByOrder.deleted = 0 AND orders.deleted = 0 AND detailsByDeliveryNotes.deleted = 0 AND
-						      NOT orders.stateId IN ('CAN','SUS') AND 						      
-						      stocksByOrder.billId = ".$id." 
-						LIMIT 0,1";							
-				*/
-				$sql = "SELECT stocksByOrder.* 
-						FROM (stocksByOrder INNER JOIN orders ON stocksByOrder.orderId = orders.id)
-						     INNER JOIN detailsByOrder ON stocksByOrder.detailOrderId = detailsByOrder.id						
-						WHERE stocksByOrder.deleted = 0 AND orders.deleted = 0 AND detailsByOrder.deleted = 0 AND
-						      NOT orders.stateId IN ('CAN','SUS') AND 	
-						      stocksByOrder.quantity > (detailsByOrder.readyQuantity - detailsByOrder.deliveredQuantity) AND 
-						      stocksByOrder.billId = ".$id." 
-						LIMIT 0,1";			
-				$query = $this->company_db->query($sql);						
-				if ($query->num_rows() > 0){   
-					$allowDelete = false;
-				}						
-			}		
+		$this->deleteError = "";
 
-			return $allowDelete;
-		} else {
-			return false;
+		if ($id <= 0) return false;
+
+		$sql = "SELECT id FROM bills WHERE deleted = 0 AND id = ".$id;
+		$query = $this->company_db->query($sql);
+		if ($query->num_rows() <= 0) {
+			$this->deleteError = "La factura no existe o ya fue eliminada.";
+ 			return false;
 		}		
+
+		$sql = "SELECT detailsByBill.id 
+		        FROM detailsByBill 
+		        WHERE detailsByBill.deleted = 0 AND detailsByBill.billId = ".$id." 
+		              AND (detailsByBill.freeQuantity < detailsByBill.quantity OR detailsByBill.deliveredQuantity > 0)
+		        UNION ALL
+		        SELECT stocksByOrder.id 
+		        FROM stocksByOrder 
+		        WHERE stocksByOrder.deleted = 0 AND stocksByOrder.billId = ".$id."
+		        UNION ALL
+		        SELECT stocksByStockMovement.id 
+		        FROM stocksByStockMovement 
+		        WHERE stocksByStockMovement.deleted = 0 AND stocksByStockMovement.billId = ".$id."
+		        LIMIT 1";
+		$query = $this->company_db->query($sql);
+		if ($query->num_rows() > 0) {
+			$this->deleteError = "La factura no se puede eliminar porque su stock ya fue asignado a pedidos o consumido por movimientos de salida.";
+			return false;
+		}
+
+		return true;	
 	}
 	
 	function getEmptyBill() {
@@ -345,6 +353,7 @@ class Bills_model extends CI_Model{
 	}	
 	
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -364,7 +373,9 @@ class Bills_model extends CI_Model{
 	}
 
 	function existsBill($supplierId=0, $letter="", $serie="", $number="", $billId=0) {
-		$exists = false;
+		$supplierId = (int)$supplierId;
+		$billId = (int)$billId;
+		$exists = false;		
 
 		if ($supplierId > 0 && $letter != "" && $serie != "" && $number != "") {
 			$letter = trim(strtoupper($letter));	
@@ -447,6 +458,8 @@ class Bills_model extends CI_Model{
 	}
 
 	function _setBillDetails($billId=-1,$details=NULL) {	
+		$billId = (int)$billId;
+
 		if ($billId > 0) { 
 
 			$detailIds = array();
@@ -496,7 +509,7 @@ class Bills_model extends CI_Model{
 							$sql = "SELECT families.affectsStock    
 						        	FROM articles INNER JOIN families
 						        	ON articles.familyId = families.id							
-									WHERE articles.id = ".$details[$i]['articleId'];					
+									WHERE articles.id = ".(int)$details[$i]['articleId'];	
 							
 							$query = $this->company_db->query($sql);			
 							if ($query->num_rows() > 0) {
@@ -506,14 +519,6 @@ class Bills_model extends CI_Model{
 								$articleAffectsStock = ((int)$row['affectsStock'] == 1);								
 
 								if ($articleAffectsStock) {
-									/*
-									$originEntity['type'] = "bill";
-									$originEntity['id'] = $details[$i]['id'];	
-									$originEntity['mainId'] = $billId;
-									$originEntity['unitPrice'] = $details[$i]['unitPrice'];
-
-									$this->articles->updatePendingStock($details[$i]['articleId'],$warehouseId,$originEntity);									
-									*/
 									$this->articles->updatePendingStock($details[$i]['articleId'],$warehouseId);									
 								}
 							} 																						
@@ -537,6 +542,8 @@ class Bills_model extends CI_Model{
 	}	
 	
 	function _updateBillTotal($billId=-1){
+		$billId = (int)$billId;
+		
 		if ($billId > 0) {
 			
 			$sql = "SELECT SUM(total) AS detailTotal
@@ -557,7 +564,9 @@ class Bills_model extends CI_Model{
 		}
 	}
 		
-	function getDataByBillDetail($detailBillId=-1){				
+	function getDataByBillDetail($detailBillId=-1) {	
+		$detailBillId = (int)$detailBillId;			
+
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
 		

@@ -13,6 +13,7 @@ class Reports_model extends CI_Model{
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
 		
+		$parameters = sanitizeQueryParameters($parameters);
 		$filterArticles = ""; 
 		$filterMovements = "";		
 		//HABILITAR USA STOCK
@@ -92,7 +93,7 @@ class Reports_model extends CI_Model{
 			break;
 
 			case 'OUTOFSTOCK':
-				$sqlStock = "SELECT detailsByOrder.articleId, orders.warehouseId, (quantity - canceledQuantity - readyQuantity) AS auxQuantity, 0 AS auxUnitPrice, 0 AS realQuantity   
+				$sqlStock = "SELECT detailsByOrder.articleId, orders.warehouseId, (quantity - readyQuantity) AS auxQuantity, 0 AS auxUnitPrice, 0 AS realQuantity   
 				             FROM detailsByOrder INNER JOIN orders 
 				             ON detailsByOrder.orderId = orders.id
 				  	         WHERE orders.deleted = 0 AND detailsByOrder.deleted = 0 AND 
@@ -125,7 +126,7 @@ class Reports_model extends CI_Model{
 			break;
 		}					
 				
-		$sql = "SELECT 
+		$sql = "SELECT SQL_CALC_FOUND_ROWS 
 		               summaryArticles.id,
 		               summaryArticles.code,
 		               summaryArticles.description,
@@ -191,12 +192,12 @@ class Reports_model extends CI_Model{
 	}  				
 
 	function getPartialDeliveries($parameters=NULL){
-
 		$data = array('list'=>array(),
 		              'totalRecords'=>0);
 
 		$filter = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 
 		// Control de Entregas: estos filtros se aplican a nivel item de pedido.
 		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
@@ -210,7 +211,7 @@ class Reports_model extends CI_Model{
 		}
 		// Estado Entrega se calcula igual que la grilla: entregado vs cantidad solicitada vigente.
 		if (isset($parameters['deliveryStateIdFilter']) && $parameters['deliveryStateIdFilter'] != "") {
-			$requestedQuantity = "(detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0))";
+			$requestedQuantity = "detailsByOrder.quantity";
 			$deliveredQuantity = "IFNULL(deliveryNotesSummary.deliveredQuantity,0)";
 			switch ($parameters['deliveryStateIdFilter']) {
 				case "COMPLETE":
@@ -268,10 +269,10 @@ class Reports_model extends CI_Model{
 		$sql .= "detailsByOrder.id AS detailOrderId, ";
 		$sql .= "detailsByOrder.code AS articleCode, ";
 		$sql .= "CONCAT(detailsByOrder.code,' - ',detailsByOrder.description) AS articleDescription, ";
-		$sql .= "IF(ISNULL(families.id),'',families.description) AS familyDescription, ";
-		$sql .= "(detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) AS requestedQuantity, ";
-		$sql .= "IFNULL(deliveryNotesSummary.deliveredQuantity,0) AS deliveredQuantity, ";
-		$sql .= "IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) >= (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)),'Entrega Completa',IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) > 0,'Entrega Parcial','Sin Entregar Aún')) AS deliveryStateDescription, ";
+		$sql .= "IF(ISNULL(families.id),'',families.description) AS familyDescription, ";		
+		$sql .= "detailsByOrder.quantity AS requestedQuantity, ";
+		$sql .= "IFNULL(deliveryNotesSummary.deliveredQuantity,0) AS deliveredQuantity, ";	
+		$sql .= "IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) >= detailsByOrder.quantity,'Entrega Completa',IF(IFNULL(deliveryNotesSummary.deliveredQuantity,0) > 0,'Entrega Parcial','Sin Entregar Aún')) AS deliveryStateDescription, ";
 		$sql .= "IF(".$withoutMaximumDate.",'Sin plazo',IF(orders.maximumDate < CURDATE(),'Vencido',IF(orders.maximumDate = CURDATE(),'Vence hoy','No vencido'))) AS dueSituationDescription, ";
 		$sql .= "IF(".$withoutMaximumDate.",'Sin plazo',IF(orders.maximumDate < CURDATE(),CONCAT('Vencido hace ',DATEDIFF(CURDATE(),orders.maximumDate),' días'),IF(orders.maximumDate = CURDATE(),'Vence hoy',CONCAT('Faltan ',DATEDIFF(orders.maximumDate,CURDATE()),' días')))) AS delayDescription, ";
 		$sql .= "IF(ISNULL(purchasesOrders.id) OR purchasesOrders.id <= 0,'',CONCAT(purchasesOrders.id,'-',companies.id,'-',DATE_FORMAT(purchasesOrders.date,'%m%y'))) AS purchaseOrderNumber, ";
@@ -295,7 +296,7 @@ class Reports_model extends CI_Model{
 		$sql .= "	GROUP BY detailsByDeliveryNotes.detailOrderId ";
 		$sql .= ") AS deliveryNotesSummary ON deliveryNotesSummary.detailOrderId = detailsByOrder.id ";
 		$sql .= "WHERE orders.deleted = 0 AND detailsByOrder.deleted = 0 ";
-		$sql .= "AND (detailsByOrder.quantity - IFNULL(detailsByOrder.canceledQuantity,0)) > 0 ";
+		$sql .= "AND detailsByOrder.quantity > 0 ";
 		$sql .= $filter." ";
 		$sql .= "ORDER BY TRIM(families.description), TRIM(detailsByOrder.description), orders.maximumDate, orders.id ";
 		$sql .= $limit;		
@@ -318,11 +319,11 @@ class Reports_model extends CI_Model{
 		return $data;
 	}
 
-	function getGeneralReport($parameters=NULL){				
-		
+	function getGeneralReport($parameters=NULL){						
 		$data = NULL;
 		
-		$filter = "";		
+		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);		
 
 		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
 			$filter .= " AND orders.date >= '".$parameters['dateFromFilter']."' ";
@@ -482,7 +483,8 @@ class Reports_model extends CI_Model{
 		$limit = "";	 
 		$order = "";
 		$filterArticles = "";
-		$filterMovements = "";										
+		$filterMovements = "";	
+		$parameters = sanitizeQueryParameters($parameters);									
 		
 		if (isset($parameters['dateFromFilter']) && $parameters['dateFromFilter'] != "") {
 			$filterMovements .= " AND o.date >= '".$parameters['dateFromFilter']." 00:00:00' ";
@@ -584,8 +586,8 @@ class Reports_model extends CI_Model{
 				
 				if ($warehouseIds != "") $warehouseIds .= ",";
 				$warehouseIds .= $wId;
-				
-				$estimatedExpr 	.= ", CEIL((SUM(IF(o.warehouseId = ".$wId.", d.quantity - d.canceledQuantity, 0)) / ".$periodDays.") * ".$estimatedDays.") AS estimatedQuantity".$wId;	
+								
+				$estimatedExpr 	.= ", CEIL((SUM(IF(o.warehouseId = ".$wId.", d.quantity, 0)) / ".$periodDays.") * ".$estimatedDays.") AS estimatedQuantity".$wId;	
 				$stockPivot    	.= ", SUM(IF(warehouseId = ".$wId.", qty, 0)) AS stock".$wId;
 	    		$baseEstimated 	.= ", COALESCE(s.estimatedQuantity".$wId.", 0) AS estimatedQuantity".$wId;
 	    		$baseStock     	.= ", COALESCE(ss.stock".$wId.", 0) AS stock".$wId;
@@ -617,7 +619,7 @@ class Reports_model extends CI_Model{
 								AND d.articleId > 0 
 								AND o.warehouseId IN (".$warehouseIds.") 
 								AND o.stateId NOT IN ('ARM','TOAUT','NOTAUT','CAN','SUS') 
-								AND d.quantity - d.canceledQuantity > 0 
+								AND d.quantity > 0  
 								".$filterMovements." 
 								".$filterArticles." 
 							GROUP BY d.articleId
@@ -645,8 +647,8 @@ class Reports_model extends CI_Model{
 								WHERE 	bi.deleted = 0 AND db.deleted = 0 
 									AND bi.warehouseId IN (".$warehouseIds.") 
 								GROUP BY db.articleId, bi.warehouseId 
-								UNION ALL 
-								SELECT d.articleId, o.warehouseId, -SUM(d.quantity - d.canceledQuantity - d.deliveredQuantity) AS qty 
+								UNION ALL 								
+								SELECT d.articleId, o.warehouseId, -SUM(d.quantity - d.deliveredQuantity) AS qty 
 								FROM detailsByOrder d 
 								INNER JOIN orders o ON d.orderId = o.id
 								WHERE 	o.deleted = 0 AND d.deleted = 0 
@@ -671,8 +673,8 @@ class Reports_model extends CI_Model{
 										AND d.affectsStock = 1 
 										AND d.articleId > 0 								
 										AND o.warehouseId IN (".$warehouseIds.") 
-										AND o.stateId NOT IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT') 
-										AND d.quantity - d.canceledQuantity - d.deliveredQuantity > 0 
+										AND o.stateId NOT IN ('ARM','CAN','FIN','NOTAUT','SUS','TOAUT') 										
+										AND d.quantity - d.deliveredQuantity > 0 
 										".$filterArticles."
 								)
 							)

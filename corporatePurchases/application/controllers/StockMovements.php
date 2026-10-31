@@ -333,7 +333,7 @@ class StockMovements extends CI_Controller {
 					$error = "No se pudo eliminar el registro, intente nuevamente.";					
 				}	
 			} else {				
-				$error = "El registro no se puede eliminar porque existen datos relacionados a él.";
+				$error = ($this->stockMovements->deleteError != "" ? $this->stockMovements->deleteError : "El registro no se puede eliminar porque existen datos relacionados a él.");
 			}			
 		} else {
 			$error = "No posee permisos para eliminar el registro.";

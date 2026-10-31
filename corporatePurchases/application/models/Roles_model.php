@@ -16,6 +16,8 @@ class Roles_model extends CI_Model{
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
 				$filter .= " AND roles.id = ".$parameters['idFilter'];				
@@ -84,6 +86,7 @@ class Roles_model extends CI_Model{
 	}
 		
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -143,6 +146,8 @@ class Roles_model extends CI_Model{
 	}	
 	
 	function deleteRole($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteRoleValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -162,6 +167,8 @@ class Roles_model extends CI_Model{
 	}
 	
 	function deleteRoleValid($id=-1){
+		$id = (int)$id;
+
 		if ($id > 0){	
 			$allowDelete = true;
 			
@@ -196,6 +203,8 @@ class Roles_model extends CI_Model{
 	}
 	
 	function getPermissions($roleId=-1){				
+		$roleId = (int)$roleId;
+
 		$permissions = array('list'=>NULL, 
 		                     'totalRecords'=>0);
 								
@@ -226,6 +235,8 @@ class Roles_model extends CI_Model{
 	}
 					
 	function isSuperiorRoleValid($roleId=-1, $superiorRoleId=-1) {
+		$roleId = (int)$roleId;
+		$superiorRoleId = (int)$superiorRoleId;
 		$validRole = true;
 		
 		if ($roleId > 0 && $superiorRoleId > 0) {		
@@ -251,6 +262,7 @@ class Roles_model extends CI_Model{
 	}
 	
 	function hasPermission($rolesId=NULL, $module=NULL, $action=NULL) {
+		$rolesId = sanitizeIdList($rolesId, ',');
 		$validPermission = false;
 		
 		if ((isset($module) && $module != "") || (isset($action) && $action != "") && isset($rolesId) && ($roleId == "-999" || $rolesId != "")) {
@@ -282,6 +294,7 @@ class Roles_model extends CI_Model{
 	}
 	
 	function getRolePermissions($rolesId=""){
+		$rolesId = sanitizeIdList($rolesId, ',');
 		$permissions = array();
 
 		if (isset($rolesId) && $rolesId != "") {
@@ -313,6 +326,7 @@ class Roles_model extends CI_Model{
 	}	
 
 	function getInferiorRolesIds($roleId=0) {
+		$roleId = (int)$roleId;
 		$inferiorRolesIds = "";
 				
 		if ($roleId > 0) {		

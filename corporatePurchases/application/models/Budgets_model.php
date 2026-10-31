@@ -107,6 +107,7 @@ class Budgets_model extends CI_Model{
 		$origins = array('list'=>NULL, 
 		                 'totalRecords'=>0);
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		if (isset($parameters)) {			
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -140,6 +141,7 @@ class Budgets_model extends CI_Model{
 		$paymentMethods = array('list'=>NULL, 
 		                 		'totalRecords'=>0);
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		if (isset($parameters)) {			
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -170,6 +172,8 @@ class Budgets_model extends CI_Model{
 	}
 
 	function deleteBudget($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteBudgetValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -197,6 +201,8 @@ class Budgets_model extends CI_Model{
 
 
 	function deleteBudgetValid($id=-1){
+		$id = (int)$id;
+
 		if ($id > 0){	
 			$allowDelete = true;	
 
@@ -266,6 +272,8 @@ class Budgets_model extends CI_Model{
 	}
 
 	function _setBudgetDetails($budgetId=-1,$details=NULL) {	
+		$budgetId = (int)$budgetId;
+
 		if ($budgetId > 0) { 
 
 			$detailIds = array();
@@ -312,6 +320,8 @@ class Budgets_model extends CI_Model{
 	}	
 
 	function _updateBudgetTotal($budgetId=-1){
+		$budgetId = (int)$budgetId;
+
 		if ($budgetId > 0) {
 			
 			$sql = "SELECT SUM(total) AS detailTotal
@@ -333,6 +343,7 @@ class Budgets_model extends CI_Model{
 	}
 
 	function getBudgetsByDetailOrder($detailOrderId=-1){				
+		$detailOrderId = (int)$detailOrderId;
 		$budgets = array('list'=>NULL, 
 		                 'totalRecords'=>0);
 		
@@ -367,6 +378,7 @@ class Budgets_model extends CI_Model{
 		
 		$filter = "";		
 		$limit = "";		
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -401,6 +413,8 @@ class Budgets_model extends CI_Model{
 	}
 
 	function _setBudgetAttachments($budgetId=-1,$attachments=NULL) {			
+		$budgetId = (int)$budgetId;
+
 		if ($budgetId > 0 && $this->my_application->hasPermission("Budgets","See")) { 
 			$attachmentIds = array();
 			if (isset($attachments) && count($attachments) > 0) {			
@@ -448,6 +462,7 @@ class Budgets_model extends CI_Model{
 	}	
 
 	function selectBudgetItem($budgetItemId=-1) {
+		$budgetItemId = (int)$budgetItemId;
 		$updateOk = false;
 		
 		if ($budgetItemId > 0) {
@@ -479,6 +494,7 @@ class Budgets_model extends CI_Model{
 	}
 
 	function getSummaryByOrder($orderId=-1) {
+		$orderId = (int)$orderId;
 		$summary = array('budgets'=>NULL,
 	                     'orderItems'=>NULL,
 	                 	 'budgetItems'=>NULL);

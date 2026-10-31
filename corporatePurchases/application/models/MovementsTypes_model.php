@@ -9,13 +9,14 @@ class MovementsTypes_model extends CI_Model{
         $this->company_db = $this->load->database('default', TRUE); 
     } 
 
-   	function getMovementsTypes($parameters=NULL){				
+   	function getMovementsTypes($parameters=NULL) {	   				
 		$movementsTypes = array('list'=>NULL, 
 		                  'totalRecords'=>0);
 		
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		if (isset($parameters)) {
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -98,6 +99,7 @@ class MovementsTypes_model extends CI_Model{
 	}
 
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -151,6 +153,8 @@ class MovementsTypes_model extends CI_Model{
 	}	
 
 	function deleteMovementType($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteMovementTypeValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -172,6 +176,8 @@ class MovementsTypes_model extends CI_Model{
 	}
 
 	function deleteMovementTypeValid($id=-1){
+		$id = (int)$id;
+		
 		if ($id > 0){	
 			$allowDelete = true;
 

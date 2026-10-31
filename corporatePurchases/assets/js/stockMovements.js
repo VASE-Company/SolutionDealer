@@ -73,6 +73,8 @@ function openArticlesFinderStockMovementEdit(row) {
 	if (row == null) row = 0;
 
 	if (row > 0 && row <= parseInt($('#detailsCount').val())) {
+		if ($("#detailCode"+row).is('[readonly],:disabled')) return;
+
 		$('#rowArticlesFinder').val(row);	
 
 		var url = 'stockMovements/articlesFinder/';
@@ -144,6 +146,8 @@ function searchArticleStockMovementEdit(row) {
 	if (row == null) row = 0;
 
 	if (row > 0 && row <= parseInt($('#detailsCount').val())) {
+		if ($("#detailCode"+row).is('[readonly],:disabled')) return;
+		
 		if ($("#detailCode"+row).val() != $("#detailOriginalCode"+row).val()) {
 			//Change the code of article
 			var code = $.trim($("#detailCode"+row).val());

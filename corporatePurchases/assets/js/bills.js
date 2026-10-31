@@ -62,7 +62,9 @@ function preSaveBill() {
 
 // ******* FINDER SUPPLIERS *******
 
-function openSuppliersFinderBillEdit() {		
+function openSuppliersFinderBillEdit() {
+	if ($("#frmData #supplierCode").is('[readonly],:disabled')) return;
+
 	var url = 'bills/suppliersFinder/';
 
 	modalMessage(url,"Buscador de Proveedores",null,null,null,null,'closeModalMessage()',true,"initializeFinderBillEdit()",null,600);	
@@ -83,6 +85,8 @@ function acceptSuppliersFinderBillEdit(finderRow) {
 }
 
 function searchSupplierBillEdit() {	
+	if ($("#frmData #supplierCode").is('[readonly],:disabled')) return;
+
 	if ($("#frmData #supplierCode").val() != $("#frmData #supplierCodeOriginal").val()) {
 		//Change the code of supplier
 		var code = $.trim($("#frmData #supplierCode").val());
@@ -125,6 +129,9 @@ function openArticlesFinderBillEdit(row) {
 	if (row == null) row = 0;
 
 	if (row > 0 && row <= parseInt($('#detailsCount').val())) {
+
+		if ($("#detailCode"+row).is('[readonly],:disabled')) return;
+
 		$('#rowArticlesFinder').val(row);	
 
 		var url = 'bills/articlesFinder/';
@@ -196,6 +203,8 @@ function searchArticleBillEdit(row) {
 	if (row == null) row = 0;
 
 	if (row > 0 && row <= parseInt($('#detailsCount').val())) {
+		if ($("#detailCode"+row).is('[readonly],:disabled')) return;
+		
 		if ($("#detailCode"+row).val() != $("#detailOriginalCode"+row).val()) {
 			//Change the code of article
 			var code = $.trim($("#detailCode"+row).val());

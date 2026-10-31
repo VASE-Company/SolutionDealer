@@ -842,7 +842,7 @@ class Orders extends CI_Controller {
 			$contentData['allowSave'] = false;	
 
 			/* Si el usuario puede editar habilito según su rol sobre el pedido y si el estado lo permite */
-			if (count($contentData['states']) > 0 && $userRol != "") {				
+			if (isset($contentData['states']) && count($contentData['states']) > 0 && $userRol != "") {				
 				if (count($contentData['states']) == 1) {
 					$allowEditByState = (trim($contentData['states'][0][$userRol.'NextStates']) != "");	
 					

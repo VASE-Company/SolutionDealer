@@ -18,6 +18,8 @@ class StockMovements_model extends CI_Model{
 		$billsFilter = "";
 		$order = "";
 		$limit = "";	
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0 && isset($parameters['registerTypeFilter']) && $parameters['registerTypeFilter'] != "") {			
 				switch ($parameters['registerTypeFilter']) {
@@ -217,7 +219,9 @@ class StockMovements_model extends CI_Model{
 
 		$stockMovementsFilter = "";
 		$deliveryNotesFilter = "";
-		$billsFilter = "";		
+		$billsFilter = "";	
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) $includePreviusStock = false;
 			if (isset($parameters['registerTypeFilter']) && $parameters['registerTypeFilter'] != "") $includePreviusStock = false;
@@ -324,6 +328,7 @@ class StockMovements_model extends CI_Model{
 	}
 
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -350,7 +355,7 @@ class StockMovements_model extends CI_Model{
 				
 			$sqlTypes = "SELECT input 
 		        		 FROM movementsTypes  
-						 WHERE deleted = 0 AND id = ".$data['typeId'];																
+						 WHERE deleted = 0 AND id = ".(int)$data['typeId'];
 			$queryTypes = $this->company_db->query($sqlTypes);			
 			if ($queryTypes->num_rows() > 0){
 				$row = $queryTypes->row_array();
@@ -396,13 +401,6 @@ class StockMovements_model extends CI_Model{
 						$detailNewIds[count($detailNewIds)] = $details[$i]['id'];		
 
 						if ($input == 1) {
-							/*
-							$originEntity['type'] = "sm";
-							$originEntity['id'] = $details[$i]['id'];							
-							$originEntity['unitPrice'] = $details[$i]['unitPrice'];
-
-							$this->articles->updatePendingStock($details[$i]['articleId'],$data['warehouseId'],$originEntity);
-							*/
 							$this->articles->updatePendingStock($details[$i]['articleId'],$data['warehouseId']);
 
 							$this->articles->updateLastUnitPrice($details[$i]['articleId']);
@@ -436,6 +434,8 @@ class StockMovements_model extends CI_Model{
 	}	
 
 	function deleteStockMovement($id=-1){
+		$id = (int)$id;
+
 		if ($this->deleteStockMovementValid($id)){	
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -483,8 +483,11 @@ class StockMovements_model extends CI_Model{
 					$row = $query->row_array();
 
 					$this->load->model('articles_model','articles');	
-					$this->articles->updateLastUnitPrice($row['articleId']);					
-				}			
+
+					$this->articles->updatePendingStock($row['articleId'],$row['warehouseId']);
+
+					$this->articles->updateLastUnitPrice($row['articleId']);
+				}
 				
 				return true;
 			}
@@ -493,47 +496,55 @@ class StockMovements_model extends CI_Model{
 		}		
 	}
 
-	function deleteStockMovementValid($id=-1){
-		if ($id > 0){	
-			$allowDelete = true;
+ 	function deleteStockMovementValid($id=-1){
+ 		$id = (int)$id;
 
-			if ($allowDelete) {	
-				$sql = "SELECT * 
-	        			FROM stockMovements  
-						WHERE deleted = 0 AND id = ".$id;																
-				$query = $this->company_db->query($sql);			
-				if ($query->num_rows() > 0){
-					$row = $query->row_array();
-
-					if ((int)$row['input'] != 1) $allowDelete = false;
-
-					if ((int)$row['deliveredQuantity'] > 0) $allowDelete = false;					
-
-					if ($allowDelete) {
-						$sql = "SELECT *
-			        			FROM (stocksByOrder INNER JOIN orders ON stocksByOrder.orderId = orders.id) 
-			        			INNER JOIN detailsByOrder ON stocksByOrder.detailOrderId = detailsByOrder.id 
-								WHERE stocksByOrder.deleted = 0 AND 									  
-								      stocksByOrder.stockMovementId = ".$id." AND 
-								      orders.deleted = 0 AND 
-								      detailsByOrder.deleted = 0 AND
-								      detailsByOrder.deliveredQuantity > 0";								      
-
-						$query = $this->company_db->query($sql);			
-						if ($query->num_rows() > 0){
-							$allowDelete = false;
-						}
-					}
-				}
-			}
-												
-			return $allowDelete;
-		} else {
+		$this->deleteError = "";
+ 
+		if ($id <= 0) return false;
+ 
+		$sql = "SELECT input, quantity, freeQuantity, deliveredQuantity 
+		        FROM stockMovements 
+				WHERE deleted = 0 AND id = ".$id;
+		$query = $this->company_db->query($sql);
+		if ($query->num_rows() <= 0) {
+			$this->deleteError = "El movimiento no existe o ya fue eliminado.";
 			return false;
-		}		
-	}	
+		}
+ 
+		$row = $query->row_array();
+ 
+		if ((int)$row['input'] != 1) {
+			$this->deleteError = "Los movimientos de salida no se pueden eliminar.";
+			return false;
+		}
+ 
+		$used = ((float)$row['freeQuantity'] < (float)$row['quantity'] || (float)$row['deliveredQuantity'] > 0);
+
+		if (!$used) {
+			$sql = "SELECT stocksByOrder.id 
+			        FROM stocksByOrder 
+			        WHERE stocksByOrder.deleted = 0 AND stocksByOrder.stockMovementId = ".$id."
+			        UNION ALL
+			        SELECT stocksByStockMovement.id 
+			        FROM stocksByStockMovement 
+			        WHERE stocksByStockMovement.deleted = 0 AND stocksByStockMovement.stockMovementId = ".$id."
+			        LIMIT 1";
+			$query = $this->company_db->query($sql);
+			$used = ($query->num_rows() > 0);
+		}
+
+		if ($used) {
+			$this->deleteError = "El movimiento no se puede eliminar porque su stock ya fue asignado a pedidos o consumido por movimientos de salida.";
+ 			return false;
+		}
+
+		return true;
+	}
 
 	function getDataByStockMovement($stockMovementId=-1){				
+		$stockMovementId = (int)$stockMovementId;
+
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
 		
@@ -616,6 +627,9 @@ class StockMovements_model extends CI_Model{
 	}
 
 	function assignFreeQuantityToStockMovements($articleId=-1,$warehouseId=-1,$freeQuantity=0) {
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		if ($articleId > 0 && $warehouseId > 0 && $freeQuantity > 0) {
 			
 			$sql = "SELECT stockMovements.id, stockMovements.quantity
@@ -631,8 +645,7 @@ class StockMovements_model extends CI_Model{
 					                           stocksByOrder.stockMovementId = stockMovements.id)
 					ORDER BY stockMovements.id DESC";	
 				
-			$query = $this->company_db->query($sql);
-			$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
+			$query = $this->company_db->query($sql);			
 			if ($query->num_rows() > 0){	
 				$stockMovements = $query->result_array();
 
@@ -704,6 +717,9 @@ class StockMovements_model extends CI_Model{
 
 	function getFreeQuantityErrorStock($articleId=-1,$warehouseId=-1) {		
 
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		$sql = "SELECT articleId, warehouseId, available, freeQuantity, articles.code AS articleCode, articles.description AS articleDescription, warehouses.description AS warehouseDescription 
 				FROM (
 
@@ -754,7 +770,9 @@ class StockMovements_model extends CI_Model{
 	}
 
 	function updateFreeQuantityStock($articleId=-1,$warehouseId=-1,$freeQuantity=0,$save=false) {
-		
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		if ($articleId > 0 && $warehouseId > 0 && $freeQuantity <> 0) {
 			
 			$sql = "SELECT *,

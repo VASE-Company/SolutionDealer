@@ -20,7 +20,7 @@ class Tasks_model extends CI_Model{
 
    		$generalConfiguration = $this->generalConfigurations->getGeneralConfigurations();
 
-		$daysCancelOrders = $generalConfiguration['daysCancelOrders'];
+		$daysCancelOrders = (int)$generalConfiguration['daysCancelOrders'];
 		
 
 		//CANCEL ORDERS AUTOMATICALLY		

@@ -58,6 +58,7 @@ class Users_model extends CI_Model{
 	}  
 
 	function getRolesIdByUser($userId=-1){				
+		$userId = (int)$userId;
 		$rolesId = "";
 		
 		if ($userId > 0) {					
@@ -86,6 +87,7 @@ class Users_model extends CI_Model{
 		$filter = "";
 		$order = "";
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 		//$onlyAllowedUsers = true;
 
 		if (isset($parameters) && isset($parameters['fromModule']) && $parameters['fromModule'] == 'MyProfile') {			
@@ -342,8 +344,8 @@ class Users_model extends CI_Model{
 		if ($module != '' && $action != '') {
 			$sql = "SELECT id 
 					FROM permissions 
-					WHERE deleted = 0 AND active = 1 AND module = '".$module."' 
-					      AND action = '".$action."'";							
+					WHERE deleted = 0 AND active = 1 AND module = ".$this->company_db->escape($module)." 
+					      AND action = ".$this->company_db->escape($action);							
 			$query = $this->company_db->query($sql);						
 			if ($query->num_rows() > 0){  
 				$row = $query->row_array();
@@ -372,6 +374,7 @@ class Users_model extends CI_Model{
 	}
 	
 	function isPasswordValid($usersId=-1, $password='') {
+		$usersId = (int)$usersId;
 		$validPassword = false;
 		
 		if ($usersId > 0 && $password != '') {
@@ -391,6 +394,7 @@ class Users_model extends CI_Model{
 	}
 	
 	function updatePassword($usersId=-1, $currentPassword='', $newPassword='') {
+		$usersId = (int)$usersId;
 		$updated = false;
 		
 		if ($usersId > 0 && $currentPassword != '' && $newPassword != '') {
@@ -412,6 +416,7 @@ class Users_model extends CI_Model{
 	}			
 
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {	
@@ -486,6 +491,8 @@ class Users_model extends CI_Model{
 	}		
 	
 	function deleteUser($id=-1){							
+		$id = (int)$id;
+
 		if ($this->deleteUserValid($id)){  				
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -505,6 +512,8 @@ class Users_model extends CI_Model{
 	}
 	
 	function deleteUserValid($id=-1){
+		$id = (int)$id;
+
 		if ($id > 0 && $id != $this->config->item('superUserId')) {
 			$sql = "SELECT * 
 					FROM users
@@ -566,6 +575,7 @@ class Users_model extends CI_Model{
 	}
 
 	function getInferiorRolesIds($rolesId="") {
+		$rolesId = sanitizeIdList($rolesId, ',');
 		$inferiorRolesIds = "";
 				
 		if ($rolesId != "") {		
@@ -589,6 +599,7 @@ class Users_model extends CI_Model{
 	}
 	
 	function _getInferiorRolesIds($roleId=0) {
+		$roleId = (int)$roleId;
 		$inferiorRolesIds = "";
 				
 		if ($roleId > 0) {		
@@ -796,7 +807,8 @@ class Users_model extends CI_Model{
 		}
 	}
 
-	function getRoles($userId=-1){				
+	function getRoles($userId=-1){		
+		$userId = (int)$userId;		
 		$permissions = array('list'=>NULL, 
 		                     'totalRecords'=>0);
 
@@ -845,7 +857,7 @@ class Users_model extends CI_Model{
 		        	INNER JOIN permissionsByRole ON rolesByUser.roleId = permissionsByRole.roleId)
 		        	INNER JOIN permissions ON permissionsByRole.permissionId = permissions.id
 					WHERE users.deleted = 0 AND users.active = 1 AND
-					      permissions.module = '".$module."' AND permissions.action = '".$action."'";   				      
+					      permissions.module = ".$this->company_db->escape($module)." AND permissions.action = ".$this->company_db->escape($action);   				      
 						      	
 			$query = $this->company_db->query($sql);				
 			if ($query->num_rows() > 0){		

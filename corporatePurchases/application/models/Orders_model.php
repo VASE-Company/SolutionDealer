@@ -11,6 +11,7 @@ class Orders_model extends CI_Model{
 
 	function getGeneralFilter($parameters=NULL){		
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {						
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] != "") {
@@ -135,6 +136,7 @@ class Orders_model extends CI_Model{
 
 	function getGeneralOrder($parameters=NULL){		
 		$order = "";
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {												
 			if (isset($parameters['fieldOrder']) && $parameters['fieldOrder'] != '') {
@@ -179,6 +181,7 @@ class Orders_model extends CI_Model{
 
 	function getGeneralLimit($parameters=NULL){		
 		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {																
 			if (isset($parameters['page']) && $parameters['page'] > 0) {
@@ -194,6 +197,7 @@ class Orders_model extends CI_Model{
 		$this->load->model('users_model','users');	
 
 		$accessFilter = "";
+		$userId = (int)$userId;
 		
 		if ($userId > 0) {												
 			$sql = "SELECT *, branchOffices.companyId 
@@ -268,6 +272,7 @@ class Orders_model extends CI_Model{
 		$orders = array('list'=>NULL, 
 		                'totalRecords'=>0);
 
+		$parameters = sanitizeQueryParameters($parameters);
 		$filter = $this->getGeneralFilter($parameters);
 		$order = $this->getGeneralOrder($parameters);
 		$limit = $this->getGeneralLimit($parameters);
@@ -373,7 +378,8 @@ class Orders_model extends CI_Model{
 		                 	   'totalRecords'=>0);
 		
 		$filter = "";		
-		$limit = "";		
+		$limit = "";	
+		$parameters = sanitizeQueryParameters($parameters);	
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -441,7 +447,8 @@ class Orders_model extends CI_Model{
 		                 'totalRecords'=>0);
 		
 		$filter = "";		
-		$limit = "";								
+		$limit = "";	
+		$parameters = sanitizeQueryParameters($parameters);							
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -499,6 +506,7 @@ class Orders_model extends CI_Model{
 		
 		$filter = "";		
 		$limit = "";								
+		$parameters = sanitizeQueryParameters($parameters);
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -540,7 +548,8 @@ class Orders_model extends CI_Model{
 		                      'totalRecords'=>0);;
 		
 		$filter = "";		
-		$limit = "";		
+		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);		
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -582,7 +591,8 @@ class Orders_model extends CI_Model{
 		                     'totalRecords'=>0);;
 		
 		$filter = "";		
-		$limit = "";		
+		$limit = "";	
+		$parameters = sanitizeQueryParameters($parameters);	
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -621,7 +631,8 @@ class Orders_model extends CI_Model{
 		                 'totalRecords'=>0);;
 		
 		$filter = "";		
-		$limit = "";		
+		$limit = "";
+		$parameters = sanitizeQueryParameters($parameters);		
 
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -714,7 +725,9 @@ class Orders_model extends CI_Model{
 	}
 
 
-	function hasPermissionOverOrder($id=0) {		
+	function hasPermissionOverOrder($id=0) {
+		$id = (int)$id;		
+
 		if ($id > 0) {
 			$parameters["idFilter"] = $id;			
 			$orders = $this->getOrders($parameters);
@@ -729,6 +742,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function deleteOrder($id=-1){
+		$id = (int)$id;	
+		
 		if ($this->deleteOrderValid($id)) {				
 			$this->company_db->set('deleted',1);	
 			$this->company_db->set('deletedDate',getCurrentDate());	        
@@ -799,6 +814,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function deleteOrderValid($id=-1){
+		$id = (int)$id;	
+
 		if ($id > 0){	
 			$allowDelete = true;		
 												
@@ -845,6 +862,7 @@ class Orders_model extends CI_Model{
 	}	
 	
 	function existsValue($value='', $id=-1, $field='') {
+		$id = (int)$id;
 		$exists = false;
 		
 		if ($value != '' && $field != '') {
@@ -877,7 +895,7 @@ class Orders_model extends CI_Model{
 			if ((float)$data['id'] > 0) {
 				$sql = "SELECT stateId, authorizingUserId, managerId, submanagerId 				
 			        	FROM orders  
-						WHERE orders.deleted = 0 AND orders.id = ".$data['id'];					
+						WHERE orders.deleted = 0 AND orders.id = ".(int)$data['id'];				
 				
 				$query = $this->company_db->query($sql);			
 				if ($query->num_rows() > 0){
@@ -944,7 +962,7 @@ class Orders_model extends CI_Model{
 				$sql = "SELECT companies.warehouseId  
 			        	FROM branchOffices INNER JOIN companies  
 						ON branchOffices.companyId = companies.id
-						WHERE branchOffices.id = ".$branchOfficeId;					
+						WHERE branchOffices.id = ".(int)$branchOfficeId;
 				
 				$query = $this->company_db->query($sql);			
 				if ($query->num_rows() > 0) {
@@ -1091,7 +1109,10 @@ class Orders_model extends CI_Model{
 				return $response;
 			} else {																
 				
-				$this->_setOrderDetails($data['id'],$data['details'],$generatePurchaseOrder);				
+				$allowEditDetail = ($newOrder || in_array($currentStateId, array('ARM','TOAUT')));
+
+				$this->_setOrderDetails($data['id'],$data['details'],$generatePurchaseOrder,$allowEditDetail);
+ 
 
 				if (isset($data['paymentSectors']))
 					$this->_setOrderPaymentSectors($data['id'],$data['paymentSectors']);
@@ -1156,7 +1177,9 @@ class Orders_model extends CI_Model{
 		}
 	}
 
-	function _setOrderDetails($orderId=-1,$details=NULL,$validStock=false) {	
+	function _setOrderDetails($orderId=-1,$details=NULL,$validStock=false,$allowEditDetail=true) {	
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) { 
 
 			$detailIds = array();
@@ -1182,6 +1205,26 @@ class Orders_model extends CI_Model{
 				for ($i=0; $i < count($details); $i++) {	
 					$articleAffectsStock = false;
 
+					if (!$allowEditDetail) {
+						//Pedido no editable: no se agregan items y se conservan articulo, codigo, descripcion y
+						//cantidad de la base (evita que el request cambie el articulo de un item con stock
+						//reservado, o que un formulario viejo pise una cantidad ya cancelada).
+						//Solo se toma el precio unitario, que sigue siendo editable para items que no afectan stock.
+						if ((float)$details[$i]['id'] <= 0) continue;
+
+						$sql = "SELECT articleId, code, description, quantity
+						        FROM detailsByOrder
+						        WHERE deleted = 0 AND orderId = ".$orderId." AND id = ".(int)$details[$i]['id'];
+						$query = $this->company_db->query($sql);
+						if ($query->num_rows() <= 0) continue;
+
+						$row = $query->row_array();
+						$details[$i]['articleId'] = $row['articleId'];
+						$details[$i]['code'] = $row['code'];
+						$details[$i]['description'] = $row['description'];
+						$details[$i]['quantity'] = $row['quantity'];
+					}
+
 					$this->company_db->set('articleId',$details[$i]['articleId']);								
 					$this->company_db->set('code',$details[$i]['code']);	
 					$this->company_db->set('description',$details[$i]['description']);
@@ -1194,7 +1237,7 @@ class Orders_model extends CI_Model{
 						$sql = "SELECT families.affectsStock    
 					        	FROM articles INNER JOIN families
 					        	ON articles.familyId = families.id							
-								WHERE articles.id = ".$details[$i]['articleId'];					
+								WHERE articles.id = ".(int)$details[$i]['articleId'];	
 						
 						$query = $this->company_db->query($sql);			
 						if ($query->num_rows() > 0) {
@@ -1257,21 +1300,25 @@ class Orders_model extends CI_Model{
 				}															
 			} 
 			
-			$this->company_db->set('deleted',1);	        
-			$this->company_db->set('deletedDate',getCurrentDate());	        
-			$this->company_db->set('deletedUserId',$this->session->userdata('userId'));	 
-			$this->company_db->where('orderId',$orderId);				
-			$this->company_db->where('deleted',0);												
-			if (count($detailIds) > 0) {
-				$this->company_db->where_not_in('id', $detailIds);
+			if ($allowEditDetail) {
+				$this->company_db->set('deleted',1);	        
+				$this->company_db->set('deletedDate',getCurrentDate());	        
+				$this->company_db->set('deletedUserId',$this->session->userdata('userId'));	 
+				$this->company_db->where('orderId',$orderId);				
+				$this->company_db->where('deleted',0);												
+				if (count($detailIds) > 0) {
+					$this->company_db->where_not_in('id', $detailIds);
+				}
+				$this->company_db->update('detailsByOrder');	
 			}
-			$this->company_db->update('detailsByOrder');	
 
 			$this->_updateQuantitiesDetailsByOrder($orderId);
 		}
 	}
 
 	function _setOrderPaymentSectors($orderId=-1,$paymentSectors=NULL) {	
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) { 
 
 			$paymentSectorsIds = array();
@@ -1314,6 +1361,11 @@ class Orders_model extends CI_Model{
 	}	
 
 	function _setStockAvailableToDetailOrden($orderId=0, $detailOrderId=0, $articleId=0, $quantity=0, $warehouseId=0) {
+		$orderId = (int)$orderId;
+		$detailOrderId = (int)$detailOrderId;
+		$articleId = (int)$articleId;
+		$warehouseId = (int)$warehouseId;
+
 		if ($orderId > 0 && $detailOrderId > 0 && $articleId > 0 && $quantity > 0 && $warehouseId > 0) {
 			$sql = "SELECT * FROM (
 						SELECT  stockMovements.id,
@@ -1416,7 +1468,9 @@ class Orders_model extends CI_Model{
 		}
 	}
 
-	function setOrderObservation($orderId=-1,$type="",$observation="",$ofSystem=false) {	
+	function setOrderObservation($orderId=-1,$type="",$observation="",$ofSystem=false) {
+		$orderId = (int)$orderId;	
+
 		if ($orderId > 0 && $type != "" && trim($observation) != "") { 				
 			if (!$ofSystem && $type == "I" && !$this->my_application->hasPermission("Orders","SeeInternalObservations")) return;
 			
@@ -1531,7 +1585,9 @@ class Orders_model extends CI_Model{
 		}
 	}		
 
-	function updateOrderTotal($orderId=-1){
+	function updateOrderTotal($orderId=-1) {
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) {
 			
 			$sql = "SELECT SUM(total) AS detailTotal
@@ -1553,6 +1609,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function updateTotalDetailByOrden($detailOrderId=-1) {
+		$detailOrderId = (int)$detailOrderId;
+
 		if ($detailOrderId > 0) {
 
 			$sql = "SELECT affectsStock, readyQuantity
@@ -1594,6 +1652,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function getOrderAllDelivered($orderId=-1,$onlyPrinted=false){
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) {
 			if ($onlyPrinted) {
 				$sqlDeliveryQuantity = "(SELECT SUM(detailsByDeliveryNotes.quantity) 
@@ -1670,16 +1730,19 @@ class Orders_model extends CI_Model{
 		                'totalRecords'=>0);
 
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters, array('idFilter'=>'code'));
+
 		if (isset($parameters)) {
-			if (isset($parameters['idFilter']) && $parameters['idFilter'] != "") {
-				$filter .= " AND ordersStates.id = '".$parameters['idFilter']."'";				
+			if (isset($parameters['idFilter']) && $parameters['idFilter'] != "") {				
+				$filter .= " AND ordersStates.id = ".$this->company_db->escape($parameters['idFilter']);				
 			}
 		}		
 				
 		$sql = "SELECT SQL_CALC_FOUND_ROWS * 
 		        FROM ordersStates 		        
 				WHERE ordersStates.deleted = 0 ".$filter." 
-				ORDER BY ordersStates.step";									
+				ORDER BY ordersStates.step";	
+
 			
 		$query = $this->company_db->query($sql);
 		$queryTotal = $this->company_db->query('SELECT FOUND_ROWS() AS totalRecords');
@@ -1721,7 +1784,10 @@ class Orders_model extends CI_Model{
 	function getPriorities($parameters=NULL){				
 		$priorities = array('list'=>NULL, 
 		                    'totalRecords'=>0);
+		
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
 				$filter .= " AND ordersPriorities.id = ".$parameters['idFilter'];				
@@ -1746,7 +1812,10 @@ class Orders_model extends CI_Model{
 	function getSubpriorities($parameters=NULL){				
 		$subpriorities = array('list'=>NULL, 
 		                       'totalRecords'=>0);
+
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {
@@ -1780,6 +1849,7 @@ class Orders_model extends CI_Model{
 	}
 
 	function currentUserCanAutorizateOrder($orderId=-1) {
+		$orderId = (int)$orderId;
 		$canAutorizate = false;
 
 		if ($orderId > 0) {
@@ -1805,6 +1875,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function _generatePurchaseOrder($orderId=-1) {
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) {
 			
 			$sql = "SELECT *
@@ -1822,6 +1894,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function notifyStateToUsers($orderId=-1) {
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) {			
 			$parameters["idFilter"] = $orderId;			
 			$orders = $this->getOrders($parameters);
@@ -1926,6 +2000,7 @@ class Orders_model extends CI_Model{
 	}
 
 	function _getUser($userId=-1) {
+		$userId = (int)$userId;
 		$user = null;
 
 		if ($userId > 0) {
@@ -1977,6 +2052,7 @@ class Orders_model extends CI_Model{
 		$orders = array('list'=>NULL, 
 		                'totalRecords'=>0);
 
+		$parameters = sanitizeQueryParameters($parameters);
 		$filter = $this->getGeneralFilter($parameters);
 		$order = $this->getGeneralOrder($parameters);
 		$limit = $this->getGeneralLimit($parameters);
@@ -2044,7 +2120,7 @@ class Orders_model extends CI_Model{
 						'fields'=>NULL, 
 		                'totalRecords'=>0);
 
-			
+		$parameters = sanitizeQueryParameters($parameters);	
 		$filter = $this->getGeneralFilter($parameters);
 		$order = $this->getGeneralOrder($parameters);
 		$limit = $this->getGeneralLimit($parameters);
@@ -2114,6 +2190,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function setPrintedDeliveryNote($deliveryNoteId=-1){
+		$deliveryNoteId = (int)$deliveryNoteId;
+
 		if ($deliveryNoteId > 0) {
 			$this->company_db->set('printed',1);	        
 			
@@ -2122,7 +2200,9 @@ class Orders_model extends CI_Model{
 		}
 	}
 	
-	function setDeliveryNote($orderId=-1,$details=NULL) {	
+	function setDeliveryNote($orderId=-1, $details=NULL) {	
+		$orderId = (int)$orderId;
+
 		$hasError = false;
 		if ($orderId <= 0) { 
 			$hasError = true;
@@ -2157,24 +2237,53 @@ class Orders_model extends CI_Model{
 
 		$this->_updateQuantitiesDetailsByOrder($orderId);
 
-		for ($i=0; $i < count($details); $i++) {				
-			$freeQuantity =0;
-			$sql = "SELECT (readyQuantity - deliveredQuantity) AS pendingQuantity 
-			        FROM detailsByOrder 
-			        WHERE detailsByOrder.deleted = 0 AND 
-			              detailsByOrder.id = ".$details[$i]['id'];
-			$query = $this->company_db->query($sql);			
-			if ($query->num_rows() > 0){
-				$row = $query->row_array();
-									
-				if ($details[$i]['quantity'] > $row['pendingQuantity']) {
-					$response = array('code'=>'ERROR',
-							      	  'message'=>'No se pudo grabar los datos, alguno de los items supera la cantidad pendiente a entregar.');
+		//Se agrupan las cantidades por item (por si el mismo item viene repetido) y se valida contra la base:
+		//el item debe pertenecer al pedido, la cantidad debe ser positiva y el articulo se toma del item, no del request
+		$quantitiesByDetail = array();
+		for ($i=0; $i < count($details); $i++) {
+			$detailId = (int)$details[$i]['id'];
+			$quantity = (float)$details[$i]['quantity'];
+ 
+			if ($detailId <= 0 || $quantity <= 0) {
+				$response = array('code'=>'ERROR',
+						      	  'message'=>'No se pudo grabar los datos, alguno de los items tiene una cantidad inválida.');
 
-					return $response;
-				}
-			}												
+				return $response;
+			}
+
+			if (!isset($quantitiesByDetail[$detailId])) $quantitiesByDetail[$detailId] = 0;
+			$quantitiesByDetail[$detailId] += $quantity;
 		}
+
+		$validDetails = array();
+		foreach ($quantitiesByDetail as $detailId => $quantity) {
+			$sql = "SELECT articleId, (readyQuantity - deliveredQuantity) AS pendingQuantity
+			        FROM detailsByOrder
+			        WHERE detailsByOrder.deleted = 0 AND
+			              detailsByOrder.orderId = ".(int)$orderId." AND
+			              detailsByOrder.id = ".(int)$detailId;
+			$query = $this->company_db->query($sql);
+			if ($query->num_rows() <= 0){
+				$response = array('code'=>'ERROR',
+						      	  'message'=>'No se pudo grabar los datos, alguno de los items no pertenece al pedido.');
+
+				return $response;
+			}
+
+			$row = $query->row_array();
+
+			if ($quantity > (float)$row['pendingQuantity']) {
+				$response = array('code'=>'ERROR',
+						      	  'message'=>'No se pudo grabar los datos, alguno de los items supera la cantidad pendiente a entregar.');
+
+				return $response;
+			}
+
+			$validDetails[] = array('id'=>$detailId,
+			                        'articleId'=>(int)$row['articleId'],
+			                        'quantity'=>$quantity);
+ 		}
+		$details = $validDetails;
 
 		$this->company_db->set('orderId',$orderId);								
 		$this->company_db->set('date',getCurrentDate());	        
@@ -2246,7 +2355,10 @@ class Orders_model extends CI_Model{
 		}
 	}	
 
-	function _updateQuantitiesDetailsByOrder($orderId=-1,$itemId=-1){
+	function _updateQuantitiesDetailsByOrder($orderId=-1, $itemId=-1) {
+		$orderId = (int)$orderId;
+		$itemId = (int)$itemId;
+
 		if ($orderId > 0) {
 			
 			$sqlDeliveryQuantity = "(SELECT SUM(detailsByDeliveryNotes.quantity) 
@@ -2267,7 +2379,9 @@ class Orders_model extends CI_Model{
 		}
 	}
 
-	function getDataByOrderDetail($detailOrderId=-1){				
+	function getDataByOrderDetail($detailOrderId=-1){	
+		$detailOrderId = (int)$detailOrderId;			
+
 		$data = array('list'=>NULL, 
 		              'totalRecords'=>0);
 		
@@ -2315,6 +2429,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function _reassignOrderStock($orderId=-1) {		
+		$orderId = (int)$orderId;
+
 		if ($orderId > 0) {
 			$sql = "SELECT warehouseId 
 		        	FROM orders 
@@ -2352,6 +2468,8 @@ class Orders_model extends CI_Model{
 	}
 
 	function deleteStockByOrdenDetail($detailOrderId=-1) {
+		$detailOrderId = (int)$detailOrderId;
+
 		if ($detailOrderId > 0) {			
 			$sql = "SELECT * 
 			        FROM stocksByOrder 
@@ -2396,6 +2514,9 @@ class Orders_model extends CI_Model{
 	}
 
 	function unassignStockByOrdenDetail($detailOrderId=-1, $unassignQuantity=-1) {
+		$detailOrderId = (int)$detailOrderId;
+		$unassignQuantity = (int)$unassignQuantity;
+
 		if ($detailOrderId > 0 && $unassignQuantity > 0) {			
 			$sql = "SELECT * 
 			        FROM stocksByOrder 
@@ -2462,6 +2583,7 @@ class Orders_model extends CI_Model{
 	}
 
 	function updateDeliveredQuantity($deliveryNoteId=-1) {
+		$deliveryNoteId = (int)$deliveryNoteId;
 
 		if ($deliveryNoteId == -1) {
 			$sql = "UPDATE stocksByOrder SET deliveredQuantity = 0";		
@@ -2548,6 +2670,7 @@ class Orders_model extends CI_Model{
 	}
 
 	function cancelableCountOfItemOrder($detailOrderId=-1) {
+		$detailOrderId = (int)$detailOrderId;
 		$cancelableCount = 0;
 		
 		if ($detailOrderId > 0) {
@@ -2580,9 +2703,14 @@ class Orders_model extends CI_Model{
 		return $cancelableCount;
 	}
 
-	function cancelItemOrder($orderId=-1,$detailOrderId=-1,$count=-1,$observation="") {		
+	function cancelItemOrder($orderId=-1,$detailOrderId=-1,$count=-1,$observation="") {				
+		$orderId = (int)$orderId;
+		$detailOrderId = (int)$detailOrderId;
+		$count = (float)$count;
 
 		if ($orderId > 0 && $detailOrderId > 0 && $count > 0) {
+			$this->load->model('articles_model','articles');
+			
 			$sql = "SELECT id, warehouseId 
 		        	FROM orders 
 					WHERE orders.deleted = 0 AND 
@@ -2672,6 +2800,8 @@ class Orders_model extends CI_Model{
 		$stateId = "";
 
 		$filter = "";
+		$parameters = sanitizeQueryParameters($parameters);
+
 		if (isset($parameters)) {						
 			if (isset($parameters['idFilter']) && $parameters['idFilter'] != "") {
 				$filter .= " AND orders.id = ".(float)$parameters['idFilter'];								
@@ -2710,6 +2840,7 @@ class Orders_model extends CI_Model{
 	}
 
 	function updateOrdersOfInsurance($orderId=-1) {
+		$orderId = (int)$orderId;
 		$idInsuranceFamilies = "";
 
 		$sql = "SELECT families.id   

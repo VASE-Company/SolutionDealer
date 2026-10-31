@@ -83,6 +83,8 @@ function searchFinderBudgetEdit(type,clear) {
 // ******* FINDER SUPPLIERS *******
 
 function openSuppliersFinderBudgetEdit() {		
+	if ($("#frmData #supplierCode").is('[readonly],:disabled')) return;
+
 	var url = 'budgets/suppliersFinder/';
 
 	modalMessage(url,"Buscador de Proveedores",null,null,null,null,'closeModalMessage()',true,"initializeFinderBudgetEdit()",null,600);	
@@ -103,6 +105,8 @@ function acceptSuppliersFinderBudgetEdit(finderRow) {
 }
 
 function searchSupplierBudgetEdit() {	
+	if ($("#frmData #supplierCode").is('[readonly],:disabled')) return;
+	
 	if ($("#frmData #supplierCode").val() != $("#frmData #supplierCodeOriginal").val()) {
 		//Change the code of supplier
 		var code = $.trim($("#frmData #supplierCode").val());
