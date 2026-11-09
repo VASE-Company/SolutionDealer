@@ -15,8 +15,8 @@ class Warehouses_model extends CI_Model{
 		
 		$filter = "";
 		$order = "";
-		$limit = "";
-		$parameters = sanitizeQueryParameters($parameters);
+		$limit = "";	
+		$parameters = sanitizeQueryParameters($parameters, array('companyIdFilter'=>'list,'));				
 
 		if (isset($parameters)) {
 			if (isset($parameters['activeOrIdFilter']) && $parameters['activeOrIdFilter'] == true) {
@@ -30,7 +30,7 @@ class Warehouses_model extends CI_Model{
 					$filter .= " AND warehouses.id = ".$parameters['idFilter'];				
 				}
 			}			
-			if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] > 0) {
+			if (isset($parameters['companyIdFilter']) && $parameters['companyIdFilter'] != "") {
 				$filter .= " AND (";
 				$filter .= "EXISTS(SELECT id FROM companies WHERE companies.id IN (".$parameters['companyIdFilter'].") AND companies.warehouseId = warehouses.id)";					
 				if (isset($parameters['idFilter']) && $parameters['idFilter'] > 0) {				

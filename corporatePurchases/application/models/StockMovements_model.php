@@ -385,6 +385,7 @@ class StockMovements_model extends CI_Model{
 					$this->company_db->set('unitPrice',0);
 					$this->company_db->set('freeQuantity',0);
 				}
+				$this->company_db->set('system',(isset($data['system']) && $data['system'] ? 1 : 0));
 
 				if ((float)$details[$i]['id'] > 0) {							
 					//NOT EDITABLE
@@ -930,6 +931,36 @@ class StockMovements_model extends CI_Model{
 		}	
 	}
 		
+	//Articulos de familias que NO afectan stock pero tienen stock fisico cargado (por depositos).
+	//Calcula el fisico igual que getStockArticle: entradas - salidas + facturas - remitos.
+	function getNonStockArticlesWithStock() {
+		$sql = "SELECT articles.id AS articleId, articles.code, articles.description,
+		               families.description AS familyDescription, stock.warehouseId, warehouses.description AS warehouseDescription,
+		               SUM(stock.quantity) AS stock
+		        FROM (
+		            SELECT articleId, warehouseId, quantity * IF(input = 1, 1, -1) AS quantity
+		            FROM stockMovements WHERE deleted = 0
+		            UNION ALL
+		            SELECT detailsByBill.articleId, bills.warehouseId, detailsByBill.quantity
+		            FROM detailsByBill INNER JOIN bills ON detailsByBill.billId = bills.id
+		            WHERE detailsByBill.deleted = 0 AND bills.deleted = 0
+		            UNION ALL
+		            SELECT articleId, warehouseId, quantity * -1
+		            FROM detailsByDeliveryNotes WHERE deleted = 0
+		        ) AS stock
+		        INNER JOIN articles ON stock.articleId = articles.id
+		        INNER JOIN families ON articles.familyId = families.id
+		        LEFT JOIN warehouses ON stock.warehouseId = warehouses.id
+		        WHERE families.affectsStock = 0
+		        GROUP BY articles.id, articles.code, articles.description, families.description, stock.warehouseId, warehouses.description
+		        HAVING SUM(stock.quantity) <> 0
+		        ORDER BY stock.warehouseId, articles.description";
+
+		$query = $this->company_db->query($sql);
+
+		return ($query->num_rows() > 0?$query->result_array():array());
+	}
+
 }
 
 /* End of file StockMovements_model.php */

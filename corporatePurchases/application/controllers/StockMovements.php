@@ -654,6 +654,104 @@ class StockMovements extends CI_Controller {
 			$this->output->set_output($view); 										
 		}
 	}
+
+	/*
+	 * Puesta a 0 del stock de articulos de familias que NO afectan stock (servicios, hoteleria, etc.).
+	 * Genera, por deposito, un movimiento de "Salida de Stock" con todos esos articulos, usando
+	 * setStockMovement (el mismo metodo que el boton Guardar de la pantalla de movimientos).
+	 * Uso:  stockMovements/resetNonStockArticles      -> solo muestra lo que haria (no graba)
+	 *       stockMovements/resetNonStockArticles/1    -> genera los movimientos
+	 */
+	function resetNonStockArticles($execute=0) {
+		if (!$this->session->userdata('userLoggedIn') || !$this->my_application->hasPermission("StockMovements","Insert")) {
+			redirect('/stockMovements/listing');
+		}
+
+		$execute = ((int)$execute == 1);
+		$execute=0;
+		$observation = "Puesta a 0 de articulos que no manejan stock (servicios)";
+		$typeId = $this->config->item('outputStockMovementTypeId');
+
+		echo "<h3>Puesta a 0 de articulos que no manejan stock - ".($execute?"EJECUCION":"SIMULACION (no se graba nada)")."</h3>";
+		//echo "<p>".getCurrentDate()." - Tipo de movimiento: ".(int)$typeId."</p>";
+
+		$rows = $this->stockMovements->getNonStockArticlesWithStock();
+		if (count($rows) == 0) {
+			echo "<p>No hay articulos que no manejen stock con existencias cargadas.</p>";
+			return;
+		}
+
+		//Agrupa por deposito
+		$byWarehouse = array();
+		for ($i=0; $i < count($rows); $i++) {
+			$byWarehouse[(int)$rows[$i]['warehouseId']][] = $rows[$i];
+		}
+
+		$totalOK = 0;
+		$totalSkipped = 0;
+
+		foreach ($byWarehouse as $warehouseId => $articles) {
+			$companyId = $this->warehouses->getFirstCompanyByWarehouse($warehouseId);
+			$warehouseName = outputFormat($articles[0]['warehouseDescription']);
+
+			echo "<h4>".$warehouseName."</h4>";
+			echo "<table border='1' cellpadding='3' cellspacing='0'><tr><th>Id</th><th>Codigo</th><th>Articulo</th><th>Familia</th><th>Stock</th><th>Disponible</th><th>Resultado</th></tr>";
+
+			$details = array();
+			for ($i=0; $i < count($articles); $i++) {
+				$stock = (float)$articles[$i]['stock'];
+				$currentStock = $this->articles->getStockArticle($articles[$i]['articleId'],$warehouseId,true);
+				$available = (float)$currentStock['available'];
+
+				if ($stock < 0) {
+					$result = "OMITIDO: stock negativo, requiere revision manual";
+					$totalSkipped++;
+				} else if ($available < $stock) {
+					$result = "OMITIDO: el disponible es menor al stock (tiene reservas), requiere revision manual";
+					$totalSkipped++;
+				} else {
+					$details[] = array('id'=>0,
+					                   'articleId'=>(int)$articles[$i]['articleId'],
+					                   'quantity'=>$stock,
+					                   'unitPrice'=>0);
+					$result = "Salida por ".$stock;
+				}
+
+				echo "<tr><td>".(int)$articles[$i]['articleId']."</td><td>".outputFormat($articles[$i]['code'])."</td><td>".outputFormat($articles[$i]['description'])."</td><td>".outputFormat($articles[$i]['familyDescription'])."</td><td align='right'>".$stock."</td><td align='right'>".$available."</td><td>".$result."</td></tr>";
+			}
+			echo "</table>";
+
+			if (count($details) == 0) continue;
+
+			if ($companyId <= 0) {
+				echo "<p><b>OMITIDO:</b> no hay una empresa asociada al deposito ".$warehouseName.".</p>";
+				$totalSkipped += count($details);
+				continue;
+			}
+
+			if ($execute) {
+				$data = array('id'=>0,
+				              'typeId'=>$typeId,
+				              'companyId'=>$companyId,
+				              'warehouseId'=>$warehouseId,
+				              'observation'=>$observation,
+				              'details'=>$details);
+
+				if ($this->stockMovements->setStockMovement($data)) {
+					echo "<p><b>OK:</b> movimiento de salida generado con ".count($details)." articulo(s).</p>";
+					$totalOK += count($details);
+				} else {
+					echo "<p><b>ERROR:</b> no se pudo generar el movimiento del deposito ".$warehouseName.".</p>";
+				}
+			} else {
+				echo "<p>Se generaria un movimiento de salida con ".count($details)." articulo(s).</p>";
+				$totalOK += count($details);
+			}
+		}
+
+		echo "<h4>Resumen: ".$totalOK." articulo(s) ".($execute?"puestos":"a poner")." en 0, ".$totalSkipped." omitido(s).</h4>";
+	}
+
 }
 
 /* End of file StockMovements.php */

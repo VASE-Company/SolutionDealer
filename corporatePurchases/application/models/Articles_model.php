@@ -1164,7 +1164,7 @@ class Articles_model extends CI_Model{
 					 	        'SM' AS type 
 						 FROM stockMovements 
 						 WHERE stockMovements.deleted = 0 AND stockMovements.input = 1 AND stockMovements.unitPrice > 0 AND 
-						       stockMovements.articleId = ".$articleId."						
+						       stockMovements.system = 0 AND stockMovements.articleId = ".$articleId."						
 				    ) AS summaryLastUnitPrice 
 					ORDER BY YEAR(date) DESC, MONTH(date) DESC, DAY(date) DESC, realDate DESC
 					LIMIT 1";		
